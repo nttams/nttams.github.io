@@ -1,1 +1,0 @@
-# nttam000.github.io
