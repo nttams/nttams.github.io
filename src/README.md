@@ -3,7 +3,7 @@
 <!-- <br> -->
 I'm Tam, a software engineer. I like coding, hiking, and beaches. Currently, I'm interested in C++, Golang, Rust, system designs
 
-I graduated from Bach Khoa University as an Automation system engineer. I also workes as a part-time automation system engineer from 3rd year, most of my work were programming for PLC, 6-axis robot controllers, and motion controllers. I also collaborate with mechanial and electrical teams to design and assembly automation systems.
+I graduated from Bach Khoa University as an Automation system engineer. I also worked as a part-time automation system engineer from 3rd year, most of my work were programming for PLC, 6-axis robot controllers, and motion controllers. I also collaborate with mechanial and electrical teams to design and assembly automation systems.
 
 Then I switched my career to Software Engineering. First I worked at DEK Technologies Vietnam for about 1.5 years, my work was about a large-scaled distributed system in telecom industry. Most of my daily jobs were develop and maintain SIP framework, network monitoring, blacklisting mechanisms for CSCF node in IMS network. And my last 4 months at DEK, I worked as a customer support engineer, the most important responsibility was to help customer recover as soon as posible from issue happens in live node. I also answer queries from customers from all over the world about configuration, behaviors and identify issue for design and maintanence team to fix.
 
