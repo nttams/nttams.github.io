@@ -56,8 +56,10 @@
     <link rel="shortcut icon" href="../gitbook/images/favicon.ico" type="image/x-icon">
 
     
+    <link rel="next" href="../private/" />
     
-    <link rel="prev" href="../private/" />
+    
+    <link rel="prev" href="../" />
     
 
     </head>
@@ -99,12 +101,12 @@
             
         </li>
     
-        <li class="chapter " data-level="1.2" data-path="../private/">
+        <li class="chapter active" data-level="1.2" data-path="./">
             
-                <a href="../private/">
+                <a href="./">
             
                     
-                    Private
+                    DNS client
             
                 </a>
             
@@ -112,12 +114,12 @@
             
         </li>
     
-        <li class="chapter active" data-level="1.3" data-path="./">
+        <li class="chapter " data-level="1.3" data-path="../private/">
             
-                <a href="./">
+                <a href="../private/">
             
                     
-                    DNS client
+                    Private
             
                 </a>
             
@@ -170,16 +172,13 @@
     
                                 <section class="normal markdown-section">
                                 
-                                <h3 id="dns-client">DNS client</h3>
-<p>I will write something about DNS client</p>
-<h3 id="dns-parsing">DNS parsing</h3>
-<p>I will write something about DNS client</p>
-<h3 id="dns-encode">DNS encode</h3>
-<p>I will write something about DNS client</p>
-<h3 id="dns-udp">DNS UDP</h3>
-<p>I will write something about DNS client</p>
-<h3 id="dns-tcp">DNS TCP</h3>
-<p>I will write something about DNS client</p>
+                                <h3 id="dns-udp-vs-tcp">DNS UDP vs TCP</h3>
+<p>Normally, DNS message would be sent over UDP protocols, this is because UDP is much faster than TCP, and that&apos;s all DNS needs. DNS is not a so important information that should be transfered by TCP.</p>
+<p>Using UDP instead of TCP makes implementation much simpler, DNS client does not need to maintain the connection, just send and wait for response (or expect a callback if you are using async network)</p>
+<p>Another thing about using UDP and TCP is in message format. As you may know, using TCP means you need to prepare to handle fragmented message, you may have to deal with TCP framing, because TCP uses streams, not datagram as in UDP. This leads to the DNS message must be indicated how long it is, this is done by 2 octets form a 16-bit unsigned int to tells the receiver how many byte it need to way to receive more.</p>
+<p>Both encoder and parser needs to deal with difference in DNS format between UDP and TCP, encoder needs to add a 2 octets number to indicate the length of the message in case of TCP, and the receiver needs to read those 2 octets first to prepare to read the rest of the message.</p>
+<p>Let&apos;s take a look closer at the implementation, you can distinguish the difference in the encoder or parser logic, but if you do so, the interface to the constructor of message class or struct would be more complicated. Instead, you can move the logic that handles difference between message formats to right above the network level.</p>
+<h3 id="thanks-for-reading">Thanks for reading</h3>
 
                                 
                                 </section>
@@ -207,10 +206,14 @@
 
             
                 
-                <a href="../private/" class="navigation navigation-prev navigation-unique" aria-label="Previous page: Private">
+                <a href="../" class="navigation navigation-prev " aria-label="Previous page: Introduction">
                     <i class="fa fa-angle-left"></i>
                 </a>
                 
+                
+                <a href="../private/" class="navigation navigation-next " aria-label="Next page: Private">
+                    <i class="fa fa-angle-right"></i>
+                </a>
                 
             
         
@@ -219,7 +222,7 @@
     <script>
         var gitbook = gitbook || [];
         gitbook.push(function() {
-            gitbook.page.hasChanged({"page":{"title":"DNS client","level":"1.3","depth":1,"previous":{"title":"Private","level":"1.2","depth":1,"path":"private/README.md","ref":"private/README.md","articles":[]},"dir":"ltr"},"config":{"plugins":[],"root":"./src","styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"},"pluginsConfig":{"highlight":{},"search":{},"lunr":{"maxIndexSize":1000000,"ignoreSpecialCharacters":false},"fontsettings":{"theme":"white","family":"sans","size":2},"theme-default":{"styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"},"showLevel":false}},"theme":"default","author":"Ngo Thien Tam","pdf":{"pageNumbers":true,"fontSize":12,"fontFamily":"Arial","paperSize":"a4","chapterMark":"pagebreak","pageBreaksBefore":"/","margin":{"right":62,"left":62,"top":56,"bottom":56},"embedFonts":false},"structure":{"langs":"LANGS.md","readme":"README.md","glossary":"GLOSSARY.md","summary":"SUMMARY.md"},"variables":{},"title":"Tam","gitbook":"*"},"file":{"path":"dns_client/README.md","mtime":"2022-06-20T04:42:00.749Z","type":"markdown"},"gitbook":{"version":"3.7.3","time":"2022-06-20T04:51:08.758Z"},"basePath":"..","book":{"language":""}});
+            gitbook.page.hasChanged({"page":{"title":"DNS client","level":"1.2","depth":1,"next":{"title":"Private","level":"1.3","depth":1,"path":"private/README.md","ref":"private/README.md","articles":[]},"previous":{"title":"Introduction","level":"1.1","depth":1,"path":"README.md","ref":"README.md","articles":[]},"dir":"ltr"},"config":{"plugins":[],"root":"./src","styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"},"pluginsConfig":{"highlight":{},"search":{},"lunr":{"maxIndexSize":1000000,"ignoreSpecialCharacters":false},"fontsettings":{"theme":"white","family":"sans","size":2},"theme-default":{"styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"},"showLevel":false}},"theme":"default","author":"Ngo Thien Tam","pdf":{"pageNumbers":true,"fontSize":12,"fontFamily":"Arial","paperSize":"a4","chapterMark":"pagebreak","pageBreaksBefore":"/","margin":{"right":62,"left":62,"top":56,"bottom":56},"embedFonts":false},"structure":{"langs":"LANGS.md","readme":"README.md","glossary":"GLOSSARY.md","summary":"SUMMARY.md"},"variables":{},"title":"Tam","gitbook":"*"},"file":{"path":"dns_client/README.md","mtime":"2022-06-20T07:42:54.290Z","type":"markdown"},"gitbook":{"version":"3.7.3","time":"2022-06-20T08:38:52.527Z"},"basePath":"..","book":{"language":""}});
         });
     </script>
 </div>
