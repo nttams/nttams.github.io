@@ -1,7 +1,8 @@
 # Summary
 
-#* [Introduction](README.md)
-#* [Data structures](data_structures/README.md)
+* [Introduction](README.md)
+* [Private](private/README.md)
+# * [Data structures](data_structures/README.md)
 #    * [Stack](data_structures/stack.md)
 #    * [Queue](data_structures/queue.md)
 #    * [Heap](data_structures/heap.md)

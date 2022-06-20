@@ -3,9 +3,16 @@
 
 I'm Tam, a software engineer. I like coding, hiking, and beaches. Currently, I'm interested in C++, Golang, Rust, and system designs.
 
-I graduated from Bach Khoa university as an automation system engineer. I also worked as a part-time automation system engineer from 3rd year, my work was to program for PLC, 6-axis robot controllers, and motion controllers. I also collaborate with mechanical and electrical teams to design and assemble automation systems.
+I graduated from Bach Khoa university as an mechatronics engineer. I had worked as a part-time automation engineer from 3rd year for 1.5 years, and 6 more months as a full time engineer. Most of work were to program PLC, 6-axis robot controllers, and motion controllers. I also collaborate with mechanical and electrical teams to design and assemble automation systems.
 
-Then I switched my career to software engineering. The first year, my work was about a large-scaled distributed system in telecom industry. Most of my daily jobs were to develop and maintain SIP framework, blacklisting, and network monitoring mechanisms. The last 4 months at the same company, I worked as a customer support engineer, the most important responsibility was to help to recover customers' live systems as soon as posible when something went wrong. I also answered queries from customers from all over the world about system configuration, architectures, and behaviors.
+After 2 years in automation industry, I switched my career to software engineering. The first year, I worked in telecom industry, with a very large-scaled distributed system. Most of my daily jobs were to develop and maintain SIP framework, caching, blacklisting, and network monitoring mechanisms. The last 4 months at the same company, I worked as a customer support engineer, the most important responsibility was to help customers to recover live systems as soon as posible when something went wrong. I also answered queries from customers from all over the world about system configuration, architectures, and behaviors.
+
+Some of my skills:
+* C++,
+* SIP, DNS protocols
+* UDP/TCP (socket handover, framing, queueing)
+* Singleton, state machine, caching
+* Linux, git
 
 ### Projects
 Most of my projects are on [github](https://github.com/nttams)
