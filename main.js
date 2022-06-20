@@ -3,6 +3,7 @@ number_of_ee = 23
 
 youtube_links = [
     ['https://www.youtube.com/embed/q7r9C3y7dkQ', 'Tu duy cua mot nha khoa hoc'],
+    ['https://www.youtube.com/embed/4P0R9dUJ370', 'Nhac khong loi'],
     ['https://www.youtube.com/embed/a8osNOpkCvY', 'Long yeu nuoc'],
     ['https://www.youtube.com/embed/H14bBuluwB8', 'Grit: the power of passion and perseverance'],
 ]
@@ -13,7 +14,6 @@ function init_friends() {
 
     for (let i = 1; i <= friends_lengths.length; i++) {
         for (let j = 1; j <= friends_lengths[i]; j++) {
-
             session = addPreZero(i)
             episode = addPreZero(j)
 

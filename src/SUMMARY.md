@@ -2,6 +2,7 @@
 
 * [Introduction](README.md)
 * [Private](private/README.md)
+* [DNS client](dns_client/README.md)
 # * [Data structures](data_structures/README.md)
 #    * [Stack](data_structures/stack.md)
 #    * [Queue](data_structures/queue.md)

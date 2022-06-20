@@ -18,12 +18,6 @@
 
 <hr>
 
-<video class="player" controls>
-    <source src="/pub/nhackhongloi.mp4" type="video/mp4 ">
-</video>
-
-<hr>
-
 <h3>Youtubes</h3>
 
 <select class="selector" id="youtube_selector" onchange="change_youtube(this.value)"></select>
