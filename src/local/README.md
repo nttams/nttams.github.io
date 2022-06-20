@@ -1,3 +1,4 @@
+<h1>This page only works in local machine</h1>
 <h3>Friends</h3>
 
 <select class="selector" id="friends_selector" onchange="change_friend(this.value)"></select>
