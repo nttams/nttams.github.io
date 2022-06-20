@@ -3,7 +3,7 @@
 <html lang="" >
     <head>
         <meta charset="UTF-8">
-        <title>Private · Tam</title>
+        <title>DNS client · Tam</title>
         <meta http-equiv="X-UA-Compatible" content="IE=edge" />
         <meta name="description" content="">
         <meta name="generator" content="HonKit 3.7.3">
@@ -56,6 +56,8 @@
     <link rel="shortcut icon" href="../gitbook/images/favicon.ico" type="image/x-icon">
 
     
+    <link rel="next" href="../bucket_list/" />
+    
     
     <link rel="prev" href="../" />
     
@@ -104,7 +106,33 @@
                 <a href="./">
             
                     
-                    Private
+                    DNS client
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.3" data-path="../bucket_list/">
+            
+                <a href="../bucket_list/">
+            
+                    
+                    Bucket list
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.4" data-path="../local/">
+            
+                <a href="../local/">
+            
+                    
+                    Local
             
                 </a>
             
@@ -142,7 +170,7 @@
     <!-- Title -->
     <h1>
         <i class="fa fa-circle-o-notch fa-spin"></i>
-        <a href=".." >Private</a>
+        <a href=".." >DNS client</a>
     </h1>
 </div>
 
@@ -157,44 +185,14 @@
     
                                 <section class="normal markdown-section">
                                 
-                                <h3 id="friends">Friends</h3>
+                                <h3 id="dns-udp-vs-tcp">DNS UDP vs TCP</h3>
+<p>Normally, DNS message would be sent over UDP protocols, this is because UDP is much faster than TCP, and that&apos;s all DNS needs. DNS is not a so important information that should be transfered by TCP.</p>
+<p>Using UDP instead of TCP makes implementation much simpler, DNS client does not need to maintain the connection, just send and wait for response (or expect a callback if you are using async network)</p>
+<p>Another thing about using UDP and TCP is in message format. As you may know, using TCP means you need to prepare to handle fragmented message, you may have to deal with TCP framing, because TCP uses streams, not datagram as in UDP. This leads to the DNS message must be indicated how long it is, this is done by 2 octets form a 16-bit unsigned int to tells the receiver how many byte it need to way to receive more.</p>
+<p>Both encoder and parser needs to deal with difference in DNS format between UDP and TCP, encoder needs to add a 2 octets number to indicate the length of the message in case of TCP, and the receiver needs to read those 2 octets first to prepare to read the rest of the message.</p>
+<p>Let&apos;s take a look closer at the implementation, you can distinguish the difference in the encoder or parser logic, but if you do so, the interface to the constructor of message class or struct would be more complicated. Instead, you can move the logic that handles difference between message formats to right above the network level.</p>
+<h3 id="thanks-for-reading">Thanks for reading</h3>
 
-<p><select class="selector" id="friends_selector" onchange="change_friend(this.value)"></select>
-<br></p>
-<video class="player" id="friends_player" controls>
-    <source src="/pub/friends/videos/s01e01.mp4" type="video/mp4 ">
-    <track label="English" kind="subtitles" srclang="en" src="/pub/friends/sub/s01e01.vtt" default>
-</video>
-
-<hr>
-
-<h3 id="effortless-english">Effortless english</h3>
-<select class="selector" id="ee_selector" onchange="change_ee(this.value)"></select>
-<br>
-<audio class="player" id="ee_player" controls>
-    <source src="/pub/ee/01.mp3" type="audio/mpeg">
-</audio>
-
-<hr>
-
-<video class="player" controls>
-    <source src="/pub/nhackhongloi.mp4" type="video/mp4 ">
-</video>
-
-<hr>
-
-<h3 id="youtubes">Youtubes</h3>
-
-<p><select class="selector" id="youtube_selector" onchange="change_youtube(this.value)"></select>
-<br></p>
-<div class="wrapper">
-    <iframe id="youtube-player" src="https://www.youtube.com/embed/q7r9C3y7dkQ" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen>
-    </iframe>
-</div>
-
-<!-- styles and scripts -->
-<p><script src="/main.js"></script></p>
-<link rel="stylesheet" href="/styles.css">
                                 
                                 </section>
                             
@@ -221,10 +219,14 @@
 
             
                 
-                <a href="../" class="navigation navigation-prev navigation-unique" aria-label="Previous page: Introduction">
+                <a href="../" class="navigation navigation-prev " aria-label="Previous page: Introduction">
                     <i class="fa fa-angle-left"></i>
                 </a>
                 
+                
+                <a href="../bucket_list/" class="navigation navigation-next " aria-label="Next page: Bucket list">
+                    <i class="fa fa-angle-right"></i>
+                </a>
                 
             
         
@@ -233,7 +235,7 @@
     <script>
         var gitbook = gitbook || [];
         gitbook.push(function() {
-            gitbook.page.hasChanged({"page":{"title":"Private","level":"1.2","depth":1,"previous":{"title":"Introduction","level":"1.1","depth":1,"path":"README.md","ref":"README.md","articles":[]},"dir":"ltr"},"config":{"plugins":[],"root":"./src","styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"},"pluginsConfig":{"highlight":{},"search":{},"lunr":{"maxIndexSize":1000000,"ignoreSpecialCharacters":false},"fontsettings":{"theme":"white","family":"sans","size":2},"theme-default":{"styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"},"showLevel":false}},"theme":"default","author":"Ngo Thien Tam","pdf":{"pageNumbers":true,"fontSize":12,"fontFamily":"Arial","paperSize":"a4","chapterMark":"pagebreak","pageBreaksBefore":"/","margin":{"right":62,"left":62,"top":56,"bottom":56},"embedFonts":false},"structure":{"langs":"LANGS.md","readme":"README.md","glossary":"GLOSSARY.md","summary":"SUMMARY.md"},"variables":{},"title":"Tam","gitbook":"*"},"file":{"path":"private/README.md","mtime":"2022-06-20T04:09:59.003Z","type":"markdown"},"gitbook":{"version":"3.7.3","time":"2022-06-20T04:10:10.683Z"},"basePath":"..","book":{"language":""}});
+            gitbook.page.hasChanged({"page":{"title":"DNS client","level":"1.2","depth":1,"next":{"title":"Bucket list","level":"1.3","depth":1,"path":"bucket_list/README.md","ref":"bucket_list/README.md","articles":[]},"previous":{"title":"Introduction","level":"1.1","depth":1,"path":"README.md","ref":"README.md","articles":[]},"dir":"ltr"},"config":{"plugins":[],"root":"./src","styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"},"pluginsConfig":{"highlight":{},"search":{},"lunr":{"maxIndexSize":1000000,"ignoreSpecialCharacters":false},"fontsettings":{"theme":"white","family":"sans","size":2},"theme-default":{"styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"},"showLevel":false}},"theme":"default","author":"Ngo Thien Tam","pdf":{"pageNumbers":true,"fontSize":12,"fontFamily":"Arial","paperSize":"a4","chapterMark":"pagebreak","pageBreaksBefore":"/","margin":{"right":62,"left":62,"top":56,"bottom":56},"embedFonts":false},"structure":{"langs":"LANGS.md","readme":"README.md","glossary":"GLOSSARY.md","summary":"SUMMARY.md"},"variables":{},"title":"Tam","gitbook":"*"},"file":{"path":"dns_client/README.md","mtime":"2022-06-20T07:42:54.290Z","type":"markdown"},"gitbook":{"version":"3.7.3","time":"2022-06-20T12:04:54.961Z"},"basePath":"..","book":{"language":""}});
         });
     </script>
 </div>

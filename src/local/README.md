@@ -1,3 +1,4 @@
+<h1>This page only works in local machine</h1>
 <h3>Friends</h3>
 
 <select class="selector" id="friends_selector" onchange="change_friend(this.value)"></select>
@@ -10,17 +11,12 @@
 <hr>
 
 <h3>Effortless english</h3>
+
 <select class="selector" id="ee_selector" onchange="change_ee(this.value)"></select>
 <br>
 <audio class="player" id="ee_player" controls>
     <source src="/pub/ee/01.mp3" type="audio/mpeg">
 </audio>
-
-<hr>
-
-<video class="player" controls>
-    <source src="/pub/nhackhongloi.mp4" type="video/mp4 ">
-</video>
 
 <hr>
 
