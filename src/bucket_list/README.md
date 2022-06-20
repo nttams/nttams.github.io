@@ -22,11 +22,11 @@
     <li>✓ Go hiking (chua chan mountain, tanang-phandung, K50 waterfall)</li>
     <li>✗ Buy a house</li>
     <li>✗ Go on a helicoper</li>
-    <li>✗ Have a classic motobike</li>
+    <li>✗ Have a classic motorcycle</li>
     <li>✗ Vacation on a cruise shop</li>
     <li>✗ Dinner at a Teppanyaki beefsteak</li>
     <li>✗ Visit Newyork</li>
-    <li>✗ Visit all 63 provinces in Vietnam with a motobike</li>
+    <li>✗ Visit all 63 provinces in Vietnam with a motorcycle</li>
     <li>✗ Understand someone</li>
     <li>✗ Learn to swim</li>
     <li>✗ Teach my kids to program 😊</li>
