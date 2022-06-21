@@ -39,3 +39,5 @@
     <li>✗ complete 42km marathon</li>
     <li>✗ hike fansipan</li>
 </ol>
+
+{% include "/footer.md" %}

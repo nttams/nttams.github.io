@@ -3,7 +3,7 @@
 <html lang="" >
     <head>
         <meta charset="UTF-8">
-        <title>Bucket list · Tam</title>
+        <title>TCP socket handover · Tam</title>
         <meta http-equiv="X-UA-Compatible" content="IE=edge" />
         <meta name="description" content="">
         <meta name="generator" content="HonKit 3.7.3">
@@ -56,8 +56,10 @@
     <link rel="shortcut icon" href="../gitbook/images/favicon.ico" type="image/x-icon">
 
     
+    <link rel="next" href="../bucket_list/" />
     
-    <link rel="prev" href="../blogs/tcp_socket_handover.html" />
+    
+    <link rel="prev" href="tcp_framing.html" />
     
 
     </head>
@@ -99,9 +101,9 @@
             
         </li>
     
-        <li class="chapter " data-level="1.2" data-path="../blogs/">
+        <li class="chapter " data-level="1.2" data-path="./">
             
-                <a href="../blogs/">
+                <a href="./">
             
                     
                     Blogs
@@ -113,9 +115,9 @@
             <ul class="articles">
                 
     
-        <li class="chapter " data-level="1.2.1" data-path="../blogs/dns_tcp_vs_udp.html">
+        <li class="chapter " data-level="1.2.1" data-path="dns_tcp_vs_udp.html">
             
-                <a href="../blogs/dns_tcp_vs_udp.html">
+                <a href="dns_tcp_vs_udp.html">
             
                     
                     DNS: TCP vs UDP
@@ -126,9 +128,9 @@
             
         </li>
     
-        <li class="chapter " data-level="1.2.2" data-path="../blogs/dns_edns.html">
+        <li class="chapter " data-level="1.2.2" data-path="dns_edns.html">
             
-                <a href="../blogs/dns_edns.html">
+                <a href="dns_edns.html">
             
                     
                     DNS: EDNS
@@ -139,9 +141,9 @@
             
         </li>
     
-        <li class="chapter " data-level="1.2.3" data-path="../blogs/tcp_framing.html">
+        <li class="chapter " data-level="1.2.3" data-path="tcp_framing.html">
             
-                <a href="../blogs/tcp_framing.html">
+                <a href="tcp_framing.html">
             
                     
                     TCP framing
@@ -152,9 +154,9 @@
             
         </li>
     
-        <li class="chapter " data-level="1.2.4" data-path="../blogs/tcp_socket_handover.html">
+        <li class="chapter active" data-level="1.2.4" data-path="tcp_socket_handover.html">
             
-                <a href="../blogs/tcp_socket_handover.html">
+                <a href="tcp_socket_handover.html">
             
                     
                     TCP socket handover
@@ -170,9 +172,9 @@
             
         </li>
     
-        <li class="chapter active" data-level="1.3" data-path="./">
+        <li class="chapter " data-level="1.3" data-path="../bucket_list/">
             
-                <a href="./">
+                <a href="../bucket_list/">
             
                     
                     Bucket list
@@ -213,7 +215,7 @@
     <!-- Title -->
     <h1>
         <i class="fa fa-circle-o-notch fa-spin"></i>
-        <a href=".." >Bucket list</a>
+        <a href=".." >TCP socket handover</a>
     </h1>
 </div>
 
@@ -228,47 +230,16 @@
     
                                 <section class="normal markdown-section">
                                 
-                                <h3 id="things-i-want-to-do-before-i-die">Things I want to do before I die</h3>
+                                <h3 id="tcp-socket-handover--thread-pool">TCP socket handover &amp; thread pool</h3>
+<p>There are many ways for a server to handle TCP listening socket, one of them is to handle a established socket with a client to another thread. Today, we will talk about that.</p>
+<p>You have a application that needs to listen on a specific port waiting for TCP connection. When a client connects to that socket (with a three-way handshark), when the establish progress is done, the server starts receiving requests and process them. Meanwhile, if another client tries to establish connection to that same server, that clients needs to wait until the server complete the requests from the previous client. This causes 2 big problems:</p>
 <ol>
-    <li>❤ Be happy</li>
-    <li>✗ Live at a beach</li>
-    <li>✗ Start a company</li>
-    <li>✗ Get married</li>
-    <li>✗ Have kids</li>
-    <li>✗ Buy a electric car</li>
-    <li>✗ Work remotely (once, but because of covid-19)</li>
-    <li>✗ Live in another country (Singapore, Europe, Japan)</li>
-    <li>✗ See aurora</li>
-    <li>✗ Start a company</li>
-    <li>✗ Speak at TED talk</li>
-    <li>✗ Fall in love</li>
-    <li>✓ Become an engineer (mechatronics, software engineer)</li>
-    <li>✗ Become a good engineer</li>
-    <li>✓ Graduate college</li>
-    <li>✗ Graduate master program</li>
-    <li>✗ Go diving</li>
-    <li>✗ Go skydiving</li>
-    <li>✓ Go hiking (chua chan mountain, tanang-phandung, K50 waterfall)</li>
-    <li>✗ Buy a house</li>
-    <li>✗ Go on a helicoper</li>
-    <li>✗ Have a classic motorcycle</li>
-    <li>✗ Vacation on a cruise shop</li>
-    <li>✗ Dinner at a Teppanyaki beefsteak</li>
-    <li>✗ Visit Newyork</li>
-    <li>✗ Visit all 63 provinces in Vietnam with a motorcycle</li>
-    <li>✗ Understand someone</li>
-    <li>✗ Learn to swim</li>
-    <li>✗ Teach my kids to program 😊</li>
-    <li>✗ Build a 3D printer</li>
-    <li>✗ Build a wood miller</li>
-    <li>✓ Have my own website</li>
-    <li>✗ Contribute to open-source projects</li>
-    <li>✗ Start a open-source project that has contributors</li>
-    <li>✓ get really really really drunk</li>
-    <li>✗ complete 42km marathon</li>
-    <li>✗ hike fansipan</li>
+<li>The client 2 has to wait, if it does not implement async network, it&apos;ll be blocked for quite a long time.</li>
+<li>The second problem is that the server cannot utilize the power of multi-core CPU, because it has only one thread, and one thread can use only one CPU core (or CPU thread) at a same time</li>
 </ol>
-
+<p>One solution for this, is to create a new thread for each connection, that would solve both problems, but it creates another problem that when there are a thousand connections, the server&apos;s resources would be overloaded</p>
+<p>To fix that, the server should allow only a certain number of threads for all connections, for example 10 threads, this number should be tuned for your specific system, depends on number of CPU cores. New connections would be distributed among those threads, that would help to distribute the loads across CPU cores and save system&apos;s resouces</p>
+<h6 id="20220621">2022/06/21</h6>
 <hr>
 
 <h5 id="tam">Tam</h5>
@@ -307,10 +278,14 @@
 
             
                 
-                <a href="../blogs/tcp_socket_handover.html" class="navigation navigation-prev navigation-unique" aria-label="Previous page: TCP socket handover">
+                <a href="tcp_framing.html" class="navigation navigation-prev " aria-label="Previous page: TCP framing">
                     <i class="fa fa-angle-left"></i>
                 </a>
                 
+                
+                <a href="../bucket_list/" class="navigation navigation-next " aria-label="Next page: Bucket list">
+                    <i class="fa fa-angle-right"></i>
+                </a>
                 
             
         
@@ -319,7 +294,7 @@
     <script>
         var gitbook = gitbook || [];
         gitbook.push(function() {
-            gitbook.page.hasChanged({"page":{"title":"Bucket list","level":"1.3","depth":1,"previous":{"title":"TCP socket handover","level":"1.2.4","depth":2,"path":"blogs/tcp_socket_handover.md","ref":"blogs/tcp_socket_handover.md","articles":[]},"dir":"ltr"},"config":{"plugins":[],"root":"./src","styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"},"pluginsConfig":{"highlight":{},"search":{},"lunr":{"maxIndexSize":1000000,"ignoreSpecialCharacters":false},"fontsettings":{"theme":"white","family":"sans","size":2},"theme-default":{"styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"},"showLevel":false}},"theme":"default","author":"Ngo Thien Tam","pdf":{"pageNumbers":true,"fontSize":12,"fontFamily":"Arial","paperSize":"a4","chapterMark":"pagebreak","pageBreaksBefore":"/","margin":{"right":62,"left":62,"top":56,"bottom":56},"embedFonts":false},"structure":{"langs":"LANGS.md","readme":"README.md","glossary":"GLOSSARY.md","summary":"SUMMARY.md"},"variables":{},"title":"Tam","gitbook":"*"},"file":{"path":"bucket_list/README.md","mtime":"2022-06-21T06:13:10.173Z","type":"markdown"},"gitbook":{"version":"3.7.3","time":"2022-06-21T07:41:05.426Z"},"basePath":"..","book":{"language":""}});
+            gitbook.page.hasChanged({"page":{"title":"TCP socket handover","level":"1.2.4","depth":2,"next":{"title":"Bucket list","level":"1.3","depth":1,"path":"bucket_list/README.md","ref":"bucket_list/README.md","articles":[]},"previous":{"title":"TCP framing","level":"1.2.3","depth":2,"path":"blogs/tcp_framing.md","ref":"blogs/tcp_framing.md","articles":[]},"dir":"ltr"},"config":{"plugins":[],"root":"./src","styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"},"pluginsConfig":{"highlight":{},"search":{},"lunr":{"maxIndexSize":1000000,"ignoreSpecialCharacters":false},"fontsettings":{"theme":"white","family":"sans","size":2},"theme-default":{"styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"},"showLevel":false}},"theme":"default","author":"Ngo Thien Tam","pdf":{"pageNumbers":true,"fontSize":12,"fontFamily":"Arial","paperSize":"a4","chapterMark":"pagebreak","pageBreaksBefore":"/","margin":{"right":62,"left":62,"top":56,"bottom":56},"embedFonts":false},"structure":{"langs":"LANGS.md","readme":"README.md","glossary":"GLOSSARY.md","summary":"SUMMARY.md"},"variables":{},"title":"Tam","gitbook":"*"},"file":{"path":"blogs/tcp_socket_handover.md","mtime":"2022-06-21T06:15:48.309Z","type":"markdown"},"gitbook":{"version":"3.7.3","time":"2022-06-21T07:41:05.426Z"},"basePath":"..","book":{"language":""}});
         });
     </script>
 </div>

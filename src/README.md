@@ -1,3 +1,4 @@
+
 ### Hello
 <img style="float:right; border-radius: 50%" src="tam.jpg" alt="tam" width="200"/>
 
@@ -27,9 +28,5 @@ Most of my projects are on [github](https://github.com/nttams)
 * [K50 waterfall](https://www.google.com/search?q=thac+k50&tbm=isch)
 * [Quy Nhon Beach](https://www.google.com/search?q=quy+nhon+beach&tbm=isch)
 
-<hr>
 
-##### Contacts
-[ngothtam.me@gmail.com](.)  
-[github](https://github.com/nttams)  
-[linkedin](https://www.linkedin.com/in/ngothtam)
+{% include "/footer.md" %}

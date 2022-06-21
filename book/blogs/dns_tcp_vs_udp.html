@@ -3,7 +3,7 @@
 <html lang="" >
     <head>
         <meta charset="UTF-8">
-        <title>DNS · Tam</title>
+        <title>DNS: TCP vs UDP · Tam</title>
         <meta http-equiv="X-UA-Compatible" content="IE=edge" />
         <meta name="description" content="">
         <meta name="generator" content="HonKit 3.7.3">
@@ -56,10 +56,10 @@
     <link rel="shortcut icon" href="../gitbook/images/favicon.ico" type="image/x-icon">
 
     
-    <link rel="next" href="../tcp/" />
+    <link rel="next" href="dns_edns.html" />
     
     
-    <link rel="prev" href="../" />
+    <link rel="prev" href="./" />
     
 
     </head>
@@ -93,7 +93,7 @@
                 <a href="../">
             
                     
-                    Introduction
+                    Hello
             
                 </a>
             
@@ -101,25 +101,26 @@
             
         </li>
     
-        <li class="chapter active" data-level="1.2" data-path="./">
+        <li class="chapter " data-level="1.2" data-path="./">
             
                 <a href="./">
             
                     
-                    DNS
+                    Blogs
             
                 </a>
             
 
             
-        </li>
+            <ul class="articles">
+                
     
-        <li class="chapter " data-level="1.3" data-path="../tcp/">
+        <li class="chapter active" data-level="1.2.1" data-path="dns_tcp_vs_udp.html">
             
-                <a href="../tcp/">
+                <a href="dns_tcp_vs_udp.html">
             
                     
-                    TCP
+                    DNS: TCP vs UDP
             
                 </a>
             
@@ -127,7 +128,51 @@
             
         </li>
     
-        <li class="chapter " data-level="1.4" data-path="../bucket_list/">
+        <li class="chapter " data-level="1.2.2" data-path="dns_edns.html">
+            
+                <a href="dns_edns.html">
+            
+                    
+                    DNS: EDNS
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.2.3" data-path="tcp_framing.html">
+            
+                <a href="tcp_framing.html">
+            
+                    
+                    TCP framing
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.2.4" data-path="tcp_socket_handover.html">
+            
+                <a href="tcp_socket_handover.html">
+            
+                    
+                    TCP socket handover
+            
+                </a>
+            
+
+            
+        </li>
+    
+
+            </ul>
+            
+        </li>
+    
+        <li class="chapter " data-level="1.3" data-path="../bucket_list/">
             
                 <a href="../bucket_list/">
             
@@ -170,7 +215,7 @@
     <!-- Title -->
     <h1>
         <i class="fa fa-circle-o-notch fa-spin"></i>
-        <a href=".." >DNS</a>
+        <a href=".." >DNS: TCP vs UDP</a>
     </h1>
 </div>
 
@@ -191,12 +236,18 @@
 <p>Another thing about using UDP and TCP is in message format. As you may know, using TCP means you need to prepare to handle fragmented message, you may have to deal with TCP framing, because TCP uses streams, not datagram as in UDP. This leads to the DNS message must be indicated how long it is, this is done by 2 octets form a 16-bit unsigned int to tells the receiver how many byte it need to way to receive more.</p>
 <p>Both encoder and parser needs to deal with difference in DNS format between UDP and TCP, encoder needs to add a 2 octets number to indicate the length of the message in case of TCP, and the receiver needs to read those 2 octets first to prepare to read the rest of the message.</p>
 <p>Let&apos;s take a look closer at the implementation, you can distinguish the difference in the encoder or parser logic, but if you do so, the interface to the constructor of message class or struct would be more complicated. Instead, you can move the logic that handles difference between message formats to right above the network level.</p>
-<p>Thanks,<br>2022/06/20</p>
-<h3 id="edns-rfc6891">EDNS (RFC6891)</h3>
-<p>Normally, max size of a UDP DNS message is 512 octets, DNS request is usually smaller than this, but the response may be larger. If the server notices the response exceeds the limit, it will set the truncated bit (TC) to on. When the client receives the response with TC bit ON, it must choose to discard the response or fallback to TCP.</p>
-<p>With EDNS, the client and server can negotiate the max size of udp message, recommended value is 1280. EDNS does this by adding a OPT resource record to the additional fields of the request to indicate that the client supports EDNS. When the server receives an EDNS request, if it does not support EDNS, it must respond with a non-EDNS response with RCODE=FORMERR</p>
-<p>EDNS has much more new features, like extended RCODE and many types of Options in OPT record</p>
-<p>Thanks,<br>2022/06/21</p>
+<h6 id="20220620">2022/06/20</h6>
+<hr>
+
+<h5 id="tam">Tam</h5>
+<p><i class="fa fa-envelope icon"> </i> <a href="..">ngothtam.me@gmail.com</a><br><i class="fa fa-github icon"> </i> <a href="https://github.com/nttams" target="_blank">github</a><br><i class="fa fa-linkedin icon"> </i> <a href="https://www.linkedin.com/in/ngothtam" target="_blank">linkedin</a></p>
+<!-- styles -->
+<p><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css"></p>
+<style>
+    .icon {
+        font-size:20px
+    }
+</style>
 
                                 
                                 </section>
@@ -224,12 +275,12 @@
 
             
                 
-                <a href="../" class="navigation navigation-prev " aria-label="Previous page: Introduction">
+                <a href="./" class="navigation navigation-prev " aria-label="Previous page: Blogs">
                     <i class="fa fa-angle-left"></i>
                 </a>
                 
                 
-                <a href="../tcp/" class="navigation navigation-next " aria-label="Next page: TCP">
+                <a href="dns_edns.html" class="navigation navigation-next " aria-label="Next page: DNS: EDNS">
                     <i class="fa fa-angle-right"></i>
                 </a>
                 
@@ -240,7 +291,7 @@
     <script>
         var gitbook = gitbook || [];
         gitbook.push(function() {
-            gitbook.page.hasChanged({"page":{"title":"DNS","level":"1.2","depth":1,"next":{"title":"TCP","level":"1.3","depth":1,"path":"tcp/README.md","ref":"tcp/README.md","articles":[]},"previous":{"title":"Introduction","level":"1.1","depth":1,"path":"README.md","ref":"README.md","articles":[]},"dir":"ltr"},"config":{"plugins":[],"root":"./src","styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"},"pluginsConfig":{"highlight":{},"search":{},"lunr":{"maxIndexSize":1000000,"ignoreSpecialCharacters":false},"fontsettings":{"theme":"white","family":"sans","size":2},"theme-default":{"styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"},"showLevel":false}},"theme":"default","author":"Ngo Thien Tam","pdf":{"pageNumbers":true,"fontSize":12,"fontFamily":"Arial","paperSize":"a4","chapterMark":"pagebreak","pageBreaksBefore":"/","margin":{"right":62,"left":62,"top":56,"bottom":56},"embedFonts":false},"structure":{"langs":"LANGS.md","readme":"README.md","glossary":"GLOSSARY.md","summary":"SUMMARY.md"},"variables":{},"title":"Tam","gitbook":"*"},"file":{"path":"dns/README.md","mtime":"2022-06-21T04:31:55.768Z","type":"markdown"},"gitbook":{"version":"3.7.3","time":"2022-06-21T04:32:05.798Z"},"basePath":"..","book":{"language":""}});
+            gitbook.page.hasChanged({"page":{"title":"DNS: TCP vs UDP","level":"1.2.1","depth":2,"next":{"title":"DNS: EDNS","level":"1.2.2","depth":2,"path":"blogs/dns_edns.md","ref":"blogs/dns_edns.md","articles":[]},"previous":{"title":"Blogs","level":"1.2","depth":1,"path":"blogs/README.md","ref":"blogs/README.md","articles":[{"title":"DNS: TCP vs UDP","level":"1.2.1","depth":2,"path":"blogs/dns_tcp_vs_udp.md","ref":"blogs/dns_tcp_vs_udp.md","articles":[]},{"title":"DNS: EDNS","level":"1.2.2","depth":2,"path":"blogs/dns_edns.md","ref":"blogs/dns_edns.md","articles":[]},{"title":"TCP framing","level":"1.2.3","depth":2,"path":"blogs/tcp_framing.md","ref":"blogs/tcp_framing.md","articles":[]},{"title":"TCP socket handover","level":"1.2.4","depth":2,"path":"blogs/tcp_socket_handover.md","ref":"blogs/tcp_socket_handover.md","articles":[]}]},"dir":"ltr"},"config":{"plugins":[],"root":"./src","styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"},"pluginsConfig":{"highlight":{},"search":{},"lunr":{"maxIndexSize":1000000,"ignoreSpecialCharacters":false},"fontsettings":{"theme":"white","family":"sans","size":2},"theme-default":{"styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"},"showLevel":false}},"theme":"default","author":"Ngo Thien Tam","pdf":{"pageNumbers":true,"fontSize":12,"fontFamily":"Arial","paperSize":"a4","chapterMark":"pagebreak","pageBreaksBefore":"/","margin":{"right":62,"left":62,"top":56,"bottom":56},"embedFonts":false},"structure":{"langs":"LANGS.md","readme":"README.md","glossary":"GLOSSARY.md","summary":"SUMMARY.md"},"variables":{},"title":"Tam","gitbook":"*"},"file":{"path":"blogs/dns_tcp_vs_udp.md","mtime":"2022-06-21T06:07:55.418Z","type":"markdown"},"gitbook":{"version":"3.7.3","time":"2022-06-21T07:41:05.426Z"},"basePath":"..","book":{"language":""}});
         });
     </script>
 </div>
