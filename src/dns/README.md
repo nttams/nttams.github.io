@@ -10,6 +10,9 @@ Both encoder and parser needs to deal with difference in DNS format between UDP 
 
 Let's take a look closer at the implementation, you can distinguish the difference in the encoder or parser logic, but if you do so, the interface to the constructor of message class or struct would be more complicated. Instead, you can move the logic that handles difference between message formats to right above the network level.
 
+Thanks,  
+2022/06/20
+
 ### EDNS (RFC6891)
 
 Normally, max size of a UDP DNS message is 512 octets, DNS request is usually smaller than this, but the response may be larger. If the server notices the response exceeds the limit, it will set the truncated bit (TC) to on. When the client receives the response with TC bit ON, it must choose to discard the response or fallback to TCP.
@@ -18,4 +21,5 @@ With EDNS, the client and server can negotiate the max size of udp message, reco
 
 EDNS has much more new features, like extended RCODE and many types of Options in OPT record
 
-### Thanks for reading
+Thanks,  
+2022/06/21

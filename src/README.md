@@ -27,7 +27,9 @@ Most of my projects are on [github](https://github.com/nttams)
 * [K50 waterfall](https://www.google.com/search?q=thac+k50&tbm=isch)
 * [Quy Nhon Beach](https://www.google.com/search?q=quy+nhon+beach&tbm=isch)
 
-### Contacts
-[ngothtam.me@gmail.com](.)  
-[linkedin](https://www.linkedin.com/in/ngothtam)
+<hr>
 
+##### Contacts
+[ngothtam.me@gmail.com](.)  
+[github](https://github.com/nttams)  
+[linkedin](https://www.linkedin.com/in/ngothtam)

@@ -3,7 +3,7 @@
 <html lang="" >
     <head>
         <meta charset="UTF-8">
-        <title>DNS · Tam</title>
+        <title>TCP · Tam</title>
         <meta http-equiv="X-UA-Compatible" content="IE=edge" />
         <meta name="description" content="">
         <meta name="generator" content="HonKit 3.7.3">
@@ -56,10 +56,10 @@
     <link rel="shortcut icon" href="../gitbook/images/favicon.ico" type="image/x-icon">
 
     
-    <link rel="next" href="../tcp/" />
+    <link rel="next" href="../bucket_list/" />
     
     
-    <link rel="prev" href="../" />
+    <link rel="prev" href="../dns/" />
     
 
     </head>
@@ -101,9 +101,9 @@
             
         </li>
     
-        <li class="chapter active" data-level="1.2" data-path="./">
+        <li class="chapter " data-level="1.2" data-path="../dns/">
             
-                <a href="./">
+                <a href="../dns/">
             
                     
                     DNS
@@ -114,9 +114,9 @@
             
         </li>
     
-        <li class="chapter " data-level="1.3" data-path="../tcp/">
+        <li class="chapter active" data-level="1.3" data-path="./">
             
-                <a href="../tcp/">
+                <a href="./">
             
                     
                     TCP
@@ -170,7 +170,7 @@
     <!-- Title -->
     <h1>
         <i class="fa fa-circle-o-notch fa-spin"></i>
-        <a href=".." >DNS</a>
+        <a href=".." >TCP</a>
     </h1>
 </div>
 
@@ -185,17 +185,27 @@
     
                                 <section class="normal markdown-section">
                                 
-                                <h3 id="dns-udp-vs-tcp">DNS UDP vs TCP</h3>
-<p>Normally, DNS message would be sent over UDP protocols, this is because UDP is much faster than TCP, and that&apos;s all DNS needs. DNS is not a so important information that should be transfered by TCP.</p>
-<p>Using UDP instead of TCP makes implementation much simpler, DNS client does not need to maintain the connection, just send and wait for response (or expect a callback if you are using async network)</p>
-<p>Another thing about using UDP and TCP is in message format. As you may know, using TCP means you need to prepare to handle fragmented message, you may have to deal with TCP framing, because TCP uses streams, not datagram as in UDP. This leads to the DNS message must be indicated how long it is, this is done by 2 octets form a 16-bit unsigned int to tells the receiver how many byte it need to way to receive more.</p>
-<p>Both encoder and parser needs to deal with difference in DNS format between UDP and TCP, encoder needs to add a 2 octets number to indicate the length of the message in case of TCP, and the receiver needs to read those 2 octets first to prepare to read the rest of the message.</p>
-<p>Let&apos;s take a look closer at the implementation, you can distinguish the difference in the encoder or parser logic, but if you do so, the interface to the constructor of message class or struct would be more complicated. Instead, you can move the logic that handles difference between message formats to right above the network level.</p>
-<p>Thanks,<br>2022/06/20</p>
-<h3 id="edns-rfc6891">EDNS (RFC6891)</h3>
-<p>Normally, max size of a UDP DNS message is 512 octets, DNS request is usually smaller than this, but the response may be larger. If the server notices the response exceeds the limit, it will set the truncated bit (TC) to on. When the client receives the response with TC bit ON, it must choose to discard the response or fallback to TCP.</p>
-<p>With EDNS, the client and server can negotiate the max size of udp message, recommended value is 1280. EDNS does this by adding a OPT resource record to the additional fields of the request to indicate that the client supports EDNS. When the server receives an EDNS request, if it does not support EDNS, it must respond with a non-EDNS response with RCODE=FORMERR</p>
-<p>EDNS has much more new features, like extended RCODE and many types of Options in OPT record</p>
+                                <h3 id="tcp-framing">TCP framing</h3>
+<p>TCP: transmission control protocol
+UDP: user datagram protocol</p>
+<p>TCP is different from UDP, probably you&apos;ve heard that TCP is reliable and UDP is not. But what more?</p>
+<p>Another difference between TCP and UDP is TCP is stream-based, and UDP is datagram-based. What do those words mean?</p>
+<p>When a UDP message is sent over a message, it must be sent in one single network packet, both the receiver expects to receive the whole UDP message in one single read system call, if it fails to do that, that message would be discarded. TCP is different, TCP messages are sent over TCP stream, there is not such barrier for a message, both sender and receiver must know and handle that. TCP receiver must be ready to handle not-complete message, each time the receiver calls read() to the os, it can receive any number of the response, it may not be complete, the receiver must hold that data in buffer, and wait for another read(s) to receive the remaining parts of the message. Only after it receives the whole message, it passes that message to upper level (maybe a parser) for further processing. This is called TCP framing for message framing</p>
+<p>There are 2 clues in the TCP message for the receivers to handle framing</p>
+<ol>
+<li>Delimiters: in HTTP, &quot;\r\n&quot; is used to seperate lines, &quot;\r\n\r\n&quot; is used to seperated header and body</li>
+<li>Prefix-length: HTTP has an atrribute &quot;Content-Length&quot; indicates the length of the body (after delimiter &quot;\r\n\r\n&quot;). The TCP receiver uses this number to know how many more bytes it has to wait for a full message.</li>
+</ol>
+<p>Thanks,<br>2022/06/21</p>
+<h3 id="tcp-socket-handover--thread-pool">TCP socket handover &amp; thread pool</h3>
+<p>There are many ways for a server to handle TCP listening socket, one of them is to handle a established socket with a client to another thread. Today, we will talk about that.</p>
+<p>You have a application that needs to listen on a specific port waiting for TCP connection. When a client connects to that socket (with a three-way handshark), when the establish progress is done, the server starts receiving requests and process them. Meanwhile, if another client tries to establish connection to that same server, that clients needs to wait until the server complete the requests from the previous client. This causes 2 big problems:</p>
+<ol>
+<li>The client 2 has to wait, if it does not implement async network, it&apos;ll be blocked for quite a long time.</li>
+<li>The second problem is that the server cannot utilize the power of multi-core CPU, because it has only one thread, and one thread can use only one CPU core (or CPU thread) at a same time</li>
+</ol>
+<p>One solution for this, is to create a new thread for each connection, that would solve both problems, but it creates another problem that when there are a thousand connections, the server&apos;s resources would be overloaded</p>
+<p>To fix that, the server should allow only a certain number of threads for all connections, for example 10 threads, this number should be tuned for your specific system, depends on number of CPU cores. New connections would be distributed among those threads, that would help to distribute the loads across CPU cores and save system&apos;s resouces</p>
 <p>Thanks,<br>2022/06/21</p>
 
                                 
@@ -224,12 +234,12 @@
 
             
                 
-                <a href="../" class="navigation navigation-prev " aria-label="Previous page: Introduction">
+                <a href="../dns/" class="navigation navigation-prev " aria-label="Previous page: DNS">
                     <i class="fa fa-angle-left"></i>
                 </a>
                 
                 
-                <a href="../tcp/" class="navigation navigation-next " aria-label="Next page: TCP">
+                <a href="../bucket_list/" class="navigation navigation-next " aria-label="Next page: Bucket list">
                     <i class="fa fa-angle-right"></i>
                 </a>
                 
@@ -240,7 +250,7 @@
     <script>
         var gitbook = gitbook || [];
         gitbook.push(function() {
-            gitbook.page.hasChanged({"page":{"title":"DNS","level":"1.2","depth":1,"next":{"title":"TCP","level":"1.3","depth":1,"path":"tcp/README.md","ref":"tcp/README.md","articles":[]},"previous":{"title":"Introduction","level":"1.1","depth":1,"path":"README.md","ref":"README.md","articles":[]},"dir":"ltr"},"config":{"plugins":[],"root":"./src","styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"},"pluginsConfig":{"highlight":{},"search":{},"lunr":{"maxIndexSize":1000000,"ignoreSpecialCharacters":false},"fontsettings":{"theme":"white","family":"sans","size":2},"theme-default":{"styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"},"showLevel":false}},"theme":"default","author":"Ngo Thien Tam","pdf":{"pageNumbers":true,"fontSize":12,"fontFamily":"Arial","paperSize":"a4","chapterMark":"pagebreak","pageBreaksBefore":"/","margin":{"right":62,"left":62,"top":56,"bottom":56},"embedFonts":false},"structure":{"langs":"LANGS.md","readme":"README.md","glossary":"GLOSSARY.md","summary":"SUMMARY.md"},"variables":{},"title":"Tam","gitbook":"*"},"file":{"path":"dns/README.md","mtime":"2022-06-21T04:31:55.768Z","type":"markdown"},"gitbook":{"version":"3.7.3","time":"2022-06-21T04:32:05.798Z"},"basePath":"..","book":{"language":""}});
+            gitbook.page.hasChanged({"page":{"title":"TCP","level":"1.3","depth":1,"next":{"title":"Bucket list","level":"1.4","depth":1,"path":"bucket_list/README.md","ref":"bucket_list/README.md","articles":[]},"previous":{"title":"DNS","level":"1.2","depth":1,"path":"dns/README.md","ref":"dns/README.md","articles":[]},"dir":"ltr"},"config":{"plugins":[],"root":"./src","styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"},"pluginsConfig":{"highlight":{},"search":{},"lunr":{"maxIndexSize":1000000,"ignoreSpecialCharacters":false},"fontsettings":{"theme":"white","family":"sans","size":2},"theme-default":{"styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"},"showLevel":false}},"theme":"default","author":"Ngo Thien Tam","pdf":{"pageNumbers":true,"fontSize":12,"fontFamily":"Arial","paperSize":"a4","chapterMark":"pagebreak","pageBreaksBefore":"/","margin":{"right":62,"left":62,"top":56,"bottom":56},"embedFonts":false},"structure":{"langs":"LANGS.md","readme":"README.md","glossary":"GLOSSARY.md","summary":"SUMMARY.md"},"variables":{},"title":"Tam","gitbook":"*"},"file":{"path":"tcp/README.md","mtime":"2022-06-21T04:27:53.359Z","type":"markdown"},"gitbook":{"version":"3.7.3","time":"2022-06-21T04:32:05.798Z"},"basePath":"..","book":{"language":""}});
         });
     </script>
 </div>
