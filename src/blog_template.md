@@ -1,4 +1,4 @@
-### {% block title %} Undefined title {% endblock %}
+### {{ page.title }}
 
 {% block content %} Undefined content {% endblock %}
 

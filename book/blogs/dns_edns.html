@@ -167,6 +167,32 @@
             
         </li>
     
+        <li class="chapter " data-level="1.2.5" data-path="wireshark.html">
+            
+                <a href="wireshark.html">
+            
+                    
+                    Wireshark, network analysis
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.2.6" data-path="balancer_hashing.html">
+            
+                <a href="balancer_hashing.html">
+            
+                    
+                    Load balancer: hasing
+            
+                </a>
+            
+
+            
+        </li>
+    
 
             </ul>
             
@@ -230,22 +256,16 @@
     
                                 <section class="normal markdown-section">
                                 
-                                <h3 id="dns-edns">DNS EDNS</h3>
+                                <h3 id="dns-edns">DNS: EDNS</h3>
 <p>Normally, max size of a UDP DNS message is 512 octets, DNS request is usually smaller than this, but the response may be larger. If the server notices the response exceeds the limit, it will set the truncated bit (TC) to on. When the client receives the response with TC bit ON, it must choose to discard the response or fallback to TCP.</p>
 <p>With EDNS, the client and server can negotiate the max size of udp message, recommended value is 1280. EDNS does this by adding a OPT resource record to the additional fields of the request to indicate that the client supports EDNS. When the server receives an EDNS request, if it does not support EDNS, it must respond with a non-EDNS response with RCODE=FORMERR</p>
 <p>EDNS has much more new features, like extended RCODE and many types of Options in OPT record</p>
 <h6 id="20220621">2022/06/21</h6>
 <hr>
 
-<h5 id="tam">Tam</h5>
-<p><i class="fa fa-envelope icon"> </i> <a href="..">ngothtam.me@gmail.com</a><br><i class="fa fa-github icon"> </i> <a href="https://github.com/nttams" target="_blank">github</a><br><i class="fa fa-linkedin icon"> </i> <a href="https://www.linkedin.com/in/ngothtam" target="_blank">linkedin</a></p>
-<!-- styles -->
-<p><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css"></p>
-<style>
-    .icon {
-        font-size:20px
-    }
-</style>
+<p><i class="fa fa-envelope" style="font-size:18px"> </i> <a href="..">ngothtam.me@gmail.com</a><br><i class="fa fa-github" style="font-size:20px"> </i> <a href="https://github.com/nttams" target="_blank">github</a><br><i class="fa fa-linkedin" style="font-size:20px"> </i> <a href="https://www.linkedin.com/in/ngothtam" target="_blank">linkedin</a></p>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+
 
                                 
                                 </section>
@@ -289,7 +309,7 @@
     <script>
         var gitbook = gitbook || [];
         gitbook.push(function() {
-            gitbook.page.hasChanged({"page":{"title":"DNS: EDNS","level":"1.2.2","depth":2,"next":{"title":"TCP framing","level":"1.2.3","depth":2,"path":"blogs/tcp_framing.md","ref":"blogs/tcp_framing.md","articles":[]},"previous":{"title":"DNS: TCP vs UDP","level":"1.2.1","depth":2,"path":"blogs/dns_tcp_vs_udp.md","ref":"blogs/dns_tcp_vs_udp.md","articles":[]},"dir":"ltr"},"config":{"plugins":[],"root":"./src","styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"},"pluginsConfig":{"highlight":{},"search":{},"lunr":{"maxIndexSize":1000000,"ignoreSpecialCharacters":false},"fontsettings":{"theme":"white","family":"sans","size":2},"theme-default":{"styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"},"showLevel":false}},"theme":"default","author":"Ngo Thien Tam","pdf":{"pageNumbers":true,"fontSize":12,"fontFamily":"Arial","paperSize":"a4","chapterMark":"pagebreak","pageBreaksBefore":"/","margin":{"right":62,"left":62,"top":56,"bottom":56},"embedFonts":false},"structure":{"langs":"LANGS.md","readme":"README.md","glossary":"GLOSSARY.md","summary":"SUMMARY.md"},"variables":{},"title":"Tam","gitbook":"*"},"file":{"path":"blogs/dns_edns.md","mtime":"2022-06-21T06:07:55.422Z","type":"markdown"},"gitbook":{"version":"3.7.3","time":"2022-06-21T07:50:18.195Z"},"basePath":"..","book":{"language":""}});
+            gitbook.page.hasChanged({"page":{"title":"DNS: EDNS","level":"1.2.2","depth":2,"next":{"title":"TCP framing","level":"1.2.3","depth":2,"path":"blogs/tcp_framing.md","ref":"blogs/tcp_framing.md","articles":[]},"previous":{"title":"DNS: TCP vs UDP","level":"1.2.1","depth":2,"path":"blogs/dns_tcp_vs_udp.md","ref":"blogs/dns_tcp_vs_udp.md","articles":[]},"dir":"ltr"},"config":{"plugins":[],"root":"./src","styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"},"pluginsConfig":{"highlight":{},"search":{},"lunr":{"maxIndexSize":1000000,"ignoreSpecialCharacters":false},"fontsettings":{"theme":"white","family":"sans","size":2},"theme-default":{"styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"},"showLevel":false}},"theme":"default","author":"Ngo Thien Tam","honkit":">= 3.0.0","pdf":{"pageNumbers":true,"fontSize":12,"fontFamily":"Arial","paperSize":"a4","chapterMark":"pagebreak","pageBreaksBefore":"/","margin":{"right":62,"left":62,"top":56,"bottom":56},"embedFonts":false},"structure":{"langs":"LANGS.md","readme":"README.md","glossary":"GLOSSARY.md","summary":"SUMMARY.md"},"variables":{},"title":"Tam","gitbook":"*"},"file":{"path":"blogs/dns_edns.md","mtime":"2022-06-21T08:47:40.220Z","type":"markdown"},"gitbook":{"version":"3.7.3","time":"2022-06-21T09:50:13.368Z"},"basePath":"..","book":{"language":""}});
         });
     </script>
 </div>

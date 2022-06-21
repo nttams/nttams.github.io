@@ -1,8 +1,6 @@
 {% extends "/blog_template.md" %}
 
-{% block title %} DNS UDP vs TCP {% endblock %}
 {% block date %} 2022/06/20 {% endblock %}
-{% block test %} test {% endblock %}
 
 {% block content %}
 Normally, DNS message would be sent over UDP protocols, this is because UDP is much faster than TCP, and that's all DNS needs. DNS is not a so important information that should be transfered by TCP.

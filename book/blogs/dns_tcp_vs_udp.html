@@ -167,6 +167,32 @@
             
         </li>
     
+        <li class="chapter " data-level="1.2.5" data-path="wireshark.html">
+            
+                <a href="wireshark.html">
+            
+                    
+                    Wireshark, network analysis
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.2.6" data-path="balancer_hashing.html">
+            
+                <a href="balancer_hashing.html">
+            
+                    
+                    Load balancer: hasing
+            
+                </a>
+            
+
+            
+        </li>
+    
 
             </ul>
             
@@ -230,7 +256,7 @@
     
                                 <section class="normal markdown-section">
                                 
-                                <h3 id="dns-udp-vs-tcp">DNS UDP vs TCP</h3>
+                                <h3 id="dns-tcp-vs-udp">DNS: TCP vs UDP</h3>
 <p>Normally, DNS message would be sent over UDP protocols, this is because UDP is much faster than TCP, and that&apos;s all DNS needs. DNS is not a so important information that should be transfered by TCP.</p>
 <p>Using UDP instead of TCP makes implementation much simpler, DNS client does not need to maintain the connection, just send and wait for response (or expect a callback if you are using async network)</p>
 <p>Another thing about using UDP and TCP is in message format. As you may know, using TCP means you need to prepare to handle fragmented message, you may have to deal with TCP framing, because TCP uses streams, not datagram as in UDP. This leads to the DNS message must be indicated how long it is, this is done by 2 octets form a 16-bit unsigned int to tells the receiver how many byte it need to way to receive more.</p>
@@ -239,15 +265,9 @@
 <h6 id="20220620">2022/06/20</h6>
 <hr>
 
-<h5 id="tam">Tam</h5>
-<p><i class="fa fa-envelope icon"> </i> <a href="..">ngothtam.me@gmail.com</a><br><i class="fa fa-github icon"> </i> <a href="https://github.com/nttams" target="_blank">github</a><br><i class="fa fa-linkedin icon"> </i> <a href="https://www.linkedin.com/in/ngothtam" target="_blank">linkedin</a></p>
-<!-- styles -->
-<p><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css"></p>
-<style>
-    .icon {
-        font-size:20px
-    }
-</style>
+<p><i class="fa fa-envelope" style="font-size:18px"> </i> <a href="..">ngothtam.me@gmail.com</a><br><i class="fa fa-github" style="font-size:20px"> </i> <a href="https://github.com/nttams" target="_blank">github</a><br><i class="fa fa-linkedin" style="font-size:20px"> </i> <a href="https://www.linkedin.com/in/ngothtam" target="_blank">linkedin</a></p>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+
 
                                 
                                 </section>
@@ -291,7 +311,7 @@
     <script>
         var gitbook = gitbook || [];
         gitbook.push(function() {
-            gitbook.page.hasChanged({"page":{"title":"DNS: TCP vs UDP","level":"1.2.1","depth":2,"next":{"title":"DNS: EDNS","level":"1.2.2","depth":2,"path":"blogs/dns_edns.md","ref":"blogs/dns_edns.md","articles":[]},"previous":{"title":"Blogs","level":"1.2","depth":1,"path":"blogs/README.md","ref":"blogs/README.md","articles":[{"title":"DNS: TCP vs UDP","level":"1.2.1","depth":2,"path":"blogs/dns_tcp_vs_udp.md","ref":"blogs/dns_tcp_vs_udp.md","articles":[]},{"title":"DNS: EDNS","level":"1.2.2","depth":2,"path":"blogs/dns_edns.md","ref":"blogs/dns_edns.md","articles":[]},{"title":"TCP framing","level":"1.2.3","depth":2,"path":"blogs/tcp_framing.md","ref":"blogs/tcp_framing.md","articles":[]},{"title":"TCP socket handover","level":"1.2.4","depth":2,"path":"blogs/tcp_socket_handover.md","ref":"blogs/tcp_socket_handover.md","articles":[]}]},"dir":"ltr"},"config":{"plugins":[],"root":"./src","styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"},"pluginsConfig":{"highlight":{},"search":{},"lunr":{"maxIndexSize":1000000,"ignoreSpecialCharacters":false},"fontsettings":{"theme":"white","family":"sans","size":2},"theme-default":{"styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"},"showLevel":false}},"theme":"default","author":"Ngo Thien Tam","pdf":{"pageNumbers":true,"fontSize":12,"fontFamily":"Arial","paperSize":"a4","chapterMark":"pagebreak","pageBreaksBefore":"/","margin":{"right":62,"left":62,"top":56,"bottom":56},"embedFonts":false},"structure":{"langs":"LANGS.md","readme":"README.md","glossary":"GLOSSARY.md","summary":"SUMMARY.md"},"variables":{},"title":"Tam","gitbook":"*"},"file":{"path":"blogs/dns_tcp_vs_udp.md","mtime":"2022-06-21T06:07:55.418Z","type":"markdown"},"gitbook":{"version":"3.7.3","time":"2022-06-21T07:50:18.195Z"},"basePath":"..","book":{"language":""}});
+            gitbook.page.hasChanged({"page":{"title":"DNS: TCP vs UDP","level":"1.2.1","depth":2,"next":{"title":"DNS: EDNS","level":"1.2.2","depth":2,"path":"blogs/dns_edns.md","ref":"blogs/dns_edns.md","articles":[]},"previous":{"title":"Blogs","level":"1.2","depth":1,"path":"blogs/README.md","ref":"blogs/README.md","articles":[{"title":"DNS: TCP vs UDP","level":"1.2.1","depth":2,"path":"blogs/dns_tcp_vs_udp.md","ref":"blogs/dns_tcp_vs_udp.md","articles":[]},{"title":"DNS: EDNS","level":"1.2.2","depth":2,"path":"blogs/dns_edns.md","ref":"blogs/dns_edns.md","articles":[]},{"title":"TCP framing","level":"1.2.3","depth":2,"path":"blogs/tcp_framing.md","ref":"blogs/tcp_framing.md","articles":[]},{"title":"TCP socket handover","level":"1.2.4","depth":2,"path":"blogs/tcp_socket_handover.md","ref":"blogs/tcp_socket_handover.md","articles":[]},{"title":"Wireshark, network analysis","level":"1.2.5","depth":2,"path":"blogs/wireshark.md","ref":"blogs/wireshark.md","articles":[]},{"title":"Load balancer: hasing","level":"1.2.6","depth":2,"path":"blogs/balancer_hashing.md","ref":"blogs/balancer_hashing.md","articles":[]}]},"dir":"ltr"},"config":{"plugins":[],"root":"./src","styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"},"pluginsConfig":{"highlight":{},"search":{},"lunr":{"maxIndexSize":1000000,"ignoreSpecialCharacters":false},"fontsettings":{"theme":"white","family":"sans","size":2},"theme-default":{"styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"},"showLevel":false}},"theme":"default","author":"Ngo Thien Tam","honkit":">= 3.0.0","pdf":{"pageNumbers":true,"fontSize":12,"fontFamily":"Arial","paperSize":"a4","chapterMark":"pagebreak","pageBreaksBefore":"/","margin":{"right":62,"left":62,"top":56,"bottom":56},"embedFonts":false},"structure":{"langs":"LANGS.md","readme":"README.md","glossary":"GLOSSARY.md","summary":"SUMMARY.md"},"variables":{},"title":"Tam","gitbook":"*"},"file":{"path":"blogs/dns_tcp_vs_udp.md","mtime":"2022-06-21T08:48:23.834Z","type":"markdown"},"gitbook":{"version":"3.7.3","time":"2022-06-21T09:50:13.368Z"},"basePath":"..","book":{"language":""}});
         });
     </script>
 </div>

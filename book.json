@@ -1,5 +1,6 @@
 {
     "root": "./src",
     "author": "Ngo Thien Tam",
-    "title": "Tam"
+    "title": "Tam",
+    "honkit": ">= 3.0.0"
 }

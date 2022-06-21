@@ -1,6 +1,5 @@
 {% extends "/blog_template.md" %}
 
-{% block title %} TCP framing {% endblock %}
 {% block date %} 2022/06/21 {% endblock %}
 
 {% block content %}

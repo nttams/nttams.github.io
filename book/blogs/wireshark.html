@@ -3,7 +3,7 @@
 <html lang="" >
     <head>
         <meta charset="UTF-8">
-        <title>Blogs · Tam</title>
+        <title>Wireshark, network analysis · Tam</title>
         <meta http-equiv="X-UA-Compatible" content="IE=edge" />
         <meta name="description" content="">
         <meta name="generator" content="HonKit 3.7.3">
@@ -56,10 +56,10 @@
     <link rel="shortcut icon" href="../gitbook/images/favicon.ico" type="image/x-icon">
 
     
-    <link rel="next" href="dns_tcp_vs_udp.html" />
+    <link rel="next" href="balancer_hashing.html" />
     
     
-    <link rel="prev" href="../" />
+    <link rel="prev" href="tcp_socket_handover.html" />
     
 
     </head>
@@ -101,7 +101,7 @@
             
         </li>
     
-        <li class="chapter active" data-level="1.2" data-path="./">
+        <li class="chapter " data-level="1.2" data-path="./">
             
                 <a href="./">
             
@@ -167,7 +167,7 @@
             
         </li>
     
-        <li class="chapter " data-level="1.2.5" data-path="wireshark.html">
+        <li class="chapter active" data-level="1.2.5" data-path="wireshark.html">
             
                 <a href="wireshark.html">
             
@@ -241,7 +241,7 @@
     <!-- Title -->
     <h1>
         <i class="fa fa-circle-o-notch fa-spin"></i>
-        <a href=".." >Blogs</a>
+        <a href=".." >Wireshark, network analysis</a>
     </h1>
 </div>
 
@@ -256,8 +256,35 @@
     
                                 <section class="normal markdown-section">
                                 
-                                <h3 id="blogs">Blogs</h3>
-<p>This is where all my blogs go</p>
+                                <h3 id="wireshark-network-analysis">Wireshark, network analysis</h3>
+<p>Wireshark is a very strong tools for network analysis, let&apos;s talk about how to use it.</p>
+<ol>
+<li>Filter: ip.addr, tcp/udp, tcp/udp.port, icmp, dns, frame contains, frame.time. Examples:<ul>
+<li>tcp &amp;&amp; dns</li>
+<li>frame contains &quot;google.com&quot;</li>
+<li>frame.time &gt;= &quot;Jan 1, 2022 00:00:00&quot; &amp;&amp; frame.time &lt;= &quot;Jan 1, 2023 00:00:00&quot;</li>
+<li>tcp.stream eq 57</li>
+</ul>
+</li>
+<li>TCP stream follwing</li>
+<li>Flow graph: Statistics --&gt; Flow Graph (be careful with large file)</li>
+</ol>
+<p>Some notes when working with network analysis</p>
+<ul>
+<li>TCP SYN is used for establishing TCP connection, if you see lots of it, maybe a node is trying to establish one to a remote host, and the remote host does not respond yet</li>
+<li>A DNS message is usually sent of UDP protocol, but if the server notices the response is too large for UDP (larger then 512 octest), it will send a response with bit TC=ON (truncated bit). The client can give up or fallback to TCP for larger message capacity</li>
+<li>Note to match IDs in request and response (if the protocol supports)</li>
+<li>TCP connection can be long-live or one-shot</li>
+<li>HTTP is usually sent over TCP, and it should be, but nothing stops us from sending it over other protocols</li>
+<li>SIP Option message is usually used for &quot;poking&quot; a remote note, to check if it is still alive or not. But it has more features than that, it can be used to discover remote node capabilities.</li>
+</ul>
+<p>Additionally, wireshark can be used for remote packet capture as well, it means you can setup and remote host to forward live capturing packet to you local host, then wireshark will catch that and display locally. This is very helpful when managing a cluster with many nodes.</p>
+<h6 id="20220621">2022/06/21</h6>
+<hr>
+
+<p><i class="fa fa-envelope" style="font-size:18px"> </i> <a href="..">ngothtam.me@gmail.com</a><br><i class="fa fa-github" style="font-size:20px"> </i> <a href="https://github.com/nttams" target="_blank">github</a><br><i class="fa fa-linkedin" style="font-size:20px"> </i> <a href="https://www.linkedin.com/in/ngothtam" target="_blank">linkedin</a></p>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+
 
                                 
                                 </section>
@@ -285,12 +312,12 @@
 
             
                 
-                <a href="../" class="navigation navigation-prev " aria-label="Previous page: Hello">
+                <a href="tcp_socket_handover.html" class="navigation navigation-prev " aria-label="Previous page: TCP socket handover">
                     <i class="fa fa-angle-left"></i>
                 </a>
                 
                 
-                <a href="dns_tcp_vs_udp.html" class="navigation navigation-next " aria-label="Next page: DNS: TCP vs UDP">
+                <a href="balancer_hashing.html" class="navigation navigation-next " aria-label="Next page: Load balancer: hasing">
                     <i class="fa fa-angle-right"></i>
                 </a>
                 
@@ -301,7 +328,7 @@
     <script>
         var gitbook = gitbook || [];
         gitbook.push(function() {
-            gitbook.page.hasChanged({"page":{"title":"Blogs","level":"1.2","depth":1,"next":{"title":"DNS: TCP vs UDP","level":"1.2.1","depth":2,"path":"blogs/dns_tcp_vs_udp.md","ref":"blogs/dns_tcp_vs_udp.md","articles":[]},"previous":{"title":"Hello","level":"1.1","depth":1,"path":"README.md","ref":"README.md","articles":[]},"articles":[{"title":"DNS: TCP vs UDP","level":"1.2.1","depth":2,"path":"blogs/dns_tcp_vs_udp.md","ref":"blogs/dns_tcp_vs_udp.md","articles":[]},{"title":"DNS: EDNS","level":"1.2.2","depth":2,"path":"blogs/dns_edns.md","ref":"blogs/dns_edns.md","articles":[]},{"title":"TCP framing","level":"1.2.3","depth":2,"path":"blogs/tcp_framing.md","ref":"blogs/tcp_framing.md","articles":[]},{"title":"TCP socket handover","level":"1.2.4","depth":2,"path":"blogs/tcp_socket_handover.md","ref":"blogs/tcp_socket_handover.md","articles":[]},{"title":"Wireshark, network analysis","level":"1.2.5","depth":2,"path":"blogs/wireshark.md","ref":"blogs/wireshark.md","articles":[]},{"title":"Load balancer: hasing","level":"1.2.6","depth":2,"path":"blogs/balancer_hashing.md","ref":"blogs/balancer_hashing.md","articles":[]}],"dir":"ltr"},"config":{"plugins":[],"root":"./src","styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"},"pluginsConfig":{"highlight":{},"search":{},"lunr":{"maxIndexSize":1000000,"ignoreSpecialCharacters":false},"fontsettings":{"theme":"white","family":"sans","size":2},"theme-default":{"styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"},"showLevel":false}},"theme":"default","author":"Ngo Thien Tam","honkit":">= 3.0.0","pdf":{"pageNumbers":true,"fontSize":12,"fontFamily":"Arial","paperSize":"a4","chapterMark":"pagebreak","pageBreaksBefore":"/","margin":{"right":62,"left":62,"top":56,"bottom":56},"embedFonts":false},"structure":{"langs":"LANGS.md","readme":"README.md","glossary":"GLOSSARY.md","summary":"SUMMARY.md"},"variables":{},"title":"Tam","gitbook":"*"},"file":{"path":"blogs/README.md","mtime":"2022-06-21T08:49:04.824Z","type":"markdown"},"gitbook":{"version":"3.7.3","time":"2022-06-21T09:50:13.368Z"},"basePath":"..","book":{"language":""}});
+            gitbook.page.hasChanged({"page":{"title":"Wireshark, network analysis","level":"1.2.5","depth":2,"next":{"title":"Load balancer: hasing","level":"1.2.6","depth":2,"path":"blogs/balancer_hashing.md","ref":"blogs/balancer_hashing.md","articles":[]},"previous":{"title":"TCP socket handover","level":"1.2.4","depth":2,"path":"blogs/tcp_socket_handover.md","ref":"blogs/tcp_socket_handover.md","articles":[]},"dir":"ltr"},"config":{"plugins":[],"root":"./src","styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"},"pluginsConfig":{"highlight":{},"search":{},"lunr":{"maxIndexSize":1000000,"ignoreSpecialCharacters":false},"fontsettings":{"theme":"white","family":"sans","size":2},"theme-default":{"styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"},"showLevel":false}},"theme":"default","author":"Ngo Thien Tam","honkit":">= 3.0.0","pdf":{"pageNumbers":true,"fontSize":12,"fontFamily":"Arial","paperSize":"a4","chapterMark":"pagebreak","pageBreaksBefore":"/","margin":{"right":62,"left":62,"top":56,"bottom":56},"embedFonts":false},"structure":{"langs":"LANGS.md","readme":"README.md","glossary":"GLOSSARY.md","summary":"SUMMARY.md"},"variables":{},"title":"Tam","gitbook":"*"},"file":{"path":"blogs/wireshark.md","mtime":"2022-06-21T09:45:42.779Z","type":"markdown"},"gitbook":{"version":"3.7.3","time":"2022-06-21T09:50:13.368Z"},"basePath":"..","book":{"language":""}});
         });
     </script>
 </div>

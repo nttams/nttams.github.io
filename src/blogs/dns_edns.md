@@ -1,6 +1,5 @@
 {% extends "/blog_template.md" %}
 
-{% block title %} DNS EDNS {% endblock %}
 {% block date %} 2022/06/21 {% endblock %}
 
 {% block content %}

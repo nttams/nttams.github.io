@@ -1,6 +1,5 @@
 {% extends "/blog_template.md" %}
 
-{% block title %} TCP socket handover & thread pool {% endblock %}
 {% block date %} 2022/06/21 {% endblock %}
 
 {% block content %}

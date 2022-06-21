@@ -1,4 +1,5 @@
-### Things I want to do before I die
+### {{ page.title }}
+Things I want to do before I die
 
 <ol>
     <li>❤ Be happy</li>
@@ -25,7 +26,7 @@
     <li>✗ Have a classic motorcycle</li>
     <li>✗ Vacation on a cruise shop</li>
     <li>✗ Dinner at a Teppanyaki beefsteak</li>
-    <li>✗ Visit Newyork</li>
+    <li>✗ Visit New York</li>
     <li>✗ Visit all 63 provinces in Vietnam with a motorcycle</li>
     <li>✗ Understand someone</li>
     <li>✗ Learn to swim</li>
@@ -38,6 +39,12 @@
     <li>✓ get really really really drunk</li>
     <li>✗ complete 42km marathon</li>
     <li>✗ hike fansipan</li>
+    <li>✗ Visit <a href="https://www.google.com/search?q=The+Great+Wall+of+China&tbm=isch">The Great Wall of China</a></li>
+    <li>✗ Visit <a href="https://www.google.com/search?q=The+Taj+Mahal+India&tbm=isch">The Taj Mahal, India</a></li>
+    <li>✗ Visit <a href="https://www.google.com/search?q=Petra+Jordan&tbm=isch">Petra, Jordan</a></li>
+    <li>✗ Visit <a href="https://www.google.com/search?q=The+Colosseum+in+Rome+Italy&tbm=isch">The Colosseum in Rome, Italy</a></li>
+    <li>✗ Visit <a href="https://www.google.com/search?q=Machu+Picchu+Peru&tbm=isch">Machu Picchu, Peru</a></li>
+    <li>✗ Visit <a href="https://www.google.com/search?q=Great+Pyramid+of+Giza+Egypt&tbm=isch">Great Pyramid of Giza, Egypt</a></li>
 </ol>
 
 {% include "/footer.md" %}
