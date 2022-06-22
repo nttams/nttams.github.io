@@ -7,6 +7,6 @@
     * [TCP framing](blogs/tcp_framing/README.md)
     * [TCP socket handover](blogs/tcp_socket_handover/README.md)
     * [Wireshark, network analysis](blogs/wireshark/README.md)
-    * [Load balancer: hasing](blogs/balancer_hashing/README.md)
+    * [Load balancer: hashing](blogs/balancer_hashing/README.md)
     * [Arduino: LED scanning](blogs/arduino_led_scanning/README.md)
 * [Bucket list](bucket_list/README.md)

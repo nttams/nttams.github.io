@@ -185,7 +185,7 @@
                 <a href="../balancer_hashing/">
             
                     
-                    Load balancer: hasing
+                    Load balancer: hashing
             
                 </a>
             
@@ -269,9 +269,18 @@
     
                                 <section class="normal markdown-section">
                                 
-                                <h3 id="arduino-led-scanning">Arduino: LED scanning</h3>
+                                <div>
+    <h4 style="margin: 0px; padding: 0px" id="arduino-led-scanning">Arduino: LED scanning</h4>
+    <p style="margin: 0px; padding: 0px; color: #696969; font-size: 1.5rem"> 2016/02/11 </p>
+    <hr style="margin: 5px 0px 10px 0px; padding: 0px">
+</div>
+
+
+
 <p><a href="http://arduino.vn/bai-viet/614-dieu-khien-ma-tran-led-24x8-tim-hieu-ki-thuat-quet-led-phan-1" target="_blank">Original post in Vietnamese</a>  </p>
 <p>Let&apos;s talk about how to control a 24x8 LED matrix</p>
+<iframe width="600" height="400" src="https://www.youtube.com/embed/HM80O1VsLo0" title="4" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+
 <h4 id="prepare">Prepare</h4>
 <ul>
 <li>24 x 8 = 192 LEDs</li>
@@ -297,6 +306,8 @@ But what if you want to light up LED (B2, Z6) and LED (C3, Z8), you can do as I 
 black is connected, white is not</p>
 <p>When row 1 is connected to (0), set 24 values for row 1 in the matrix would be updated. Next row 2, then row 3, ... This progress is very fast, so human eyes can not distigush between updates. The result is that we only see as in the table</p>
 <p>You can verify this by adding a delay when switching rows</p>
+<iframe width="600" height="400" src="https://www.youtube.com/embed/wMZcpWFMuls" title="5" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+
 <h4 id="ic-hc595-connecting">IC HC595 connecting</h4>
 <p><img style="width: 30vw" src="figure2.jpg">
 <img style="width: 30vw" src="figure3.jpg"></p>
@@ -476,7 +487,6 @@ byte leds[<span class="hljs-number">24</span>];
 }
 </code></pre>
 <h4 id="thats-all-enjoy">That&apos;s all, enjoy.</h4>
-<h6 id="20160211">2016/02/11</h6>
 <hr>
 
 <p><i class="fa fa-envelope" style="font-size:18px"> </i> <a href="../..">ngothtam.me@gmail.com</a><br><i class="fa fa-github" style="font-size:20px"> </i> <a href="https://github.com/nttams" target="_blank">github</a><br><i class="fa fa-linkedin" style="font-size:20px"> </i> <a href="https://www.linkedin.com/in/ngothtam" target="_blank">linkedin</a></p>
@@ -509,7 +519,7 @@ byte leds[<span class="hljs-number">24</span>];
 
             
                 
-                <a href="../balancer_hashing/" class="navigation navigation-prev " aria-label="Previous page: Load balancer: hasing">
+                <a href="../balancer_hashing/" class="navigation navigation-prev " aria-label="Previous page: Load balancer: hashing">
                     <i class="fa fa-angle-left"></i>
                 </a>
                 
@@ -525,7 +535,7 @@ byte leds[<span class="hljs-number">24</span>];
     <script>
         var gitbook = gitbook || [];
         gitbook.push(function() {
-            gitbook.page.hasChanged({"page":{"title":"Arduino: LED scanning","level":"1.2.7","depth":2,"next":{"title":"Bucket list","level":"1.3","depth":1,"path":"bucket_list/README.md","ref":"bucket_list/README.md","articles":[]},"previous":{"title":"Load balancer: hasing","level":"1.2.6","depth":2,"path":"blogs/balancer_hashing/README.md","ref":"blogs/balancer_hashing/README.md","articles":[]},"dir":"ltr"},"config":{"plugins":[],"root":"./src","styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"},"pluginsConfig":{"highlight":{},"search":{},"lunr":{"maxIndexSize":1000000,"ignoreSpecialCharacters":false},"fontsettings":{"theme":"white","family":"sans","size":2},"theme-default":{"styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"},"showLevel":false}},"theme":"default","author":"Ngo Thien Tam","honkit":">= 3.0.0","pdf":{"pageNumbers":true,"fontSize":12,"fontFamily":"Arial","paperSize":"a4","chapterMark":"pagebreak","pageBreaksBefore":"/","margin":{"right":62,"left":62,"top":56,"bottom":56},"embedFonts":false},"structure":{"langs":"LANGS.md","readme":"README.md","glossary":"GLOSSARY.md","summary":"SUMMARY.md"},"variables":{},"title":"Tam","gitbook":"*"},"file":{"path":"blogs/arduino_led_scanning/README.md","mtime":"2022-06-22T13:06:33.077Z","type":"markdown"},"gitbook":{"version":"3.7.3","time":"2022-06-22T13:07:55.905Z"},"basePath":"../..","book":{"language":""}});
+            gitbook.page.hasChanged({"page":{"title":"Arduino: LED scanning","level":"1.2.7","depth":2,"next":{"title":"Bucket list","level":"1.3","depth":1,"path":"bucket_list/README.md","ref":"bucket_list/README.md","articles":[]},"previous":{"title":"Load balancer: hashing","level":"1.2.6","depth":2,"path":"blogs/balancer_hashing/README.md","ref":"blogs/balancer_hashing/README.md","articles":[]},"dir":"ltr"},"config":{"plugins":[],"root":"./src","styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"},"pluginsConfig":{"highlight":{},"search":{},"lunr":{"maxIndexSize":1000000,"ignoreSpecialCharacters":false},"fontsettings":{"theme":"white","family":"sans","size":2},"theme-default":{"styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"},"showLevel":false}},"theme":"default","author":"Ngo Thien Tam","honkit":">= 3.0.0","pdf":{"pageNumbers":true,"fontSize":12,"fontFamily":"Arial","paperSize":"a4","chapterMark":"pagebreak","pageBreaksBefore":"/","margin":{"right":62,"left":62,"top":56,"bottom":56},"embedFonts":false},"structure":{"langs":"LANGS.md","readme":"README.md","glossary":"GLOSSARY.md","summary":"SUMMARY.md"},"variables":{},"title":"Tam","gitbook":"*"},"file":{"path":"blogs/arduino_led_scanning/README.md","mtime":"2022-06-22T15:52:07.290Z","type":"markdown"},"gitbook":{"version":"3.7.3","time":"2022-06-22T15:54:23.858Z"},"basePath":"../..","book":{"language":""}});
         });
     </script>
 </div>

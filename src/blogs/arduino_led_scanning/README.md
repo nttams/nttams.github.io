@@ -7,6 +7,9 @@
 [Original post in Vietnamese](http://arduino.vn/bai-viet/614-dieu-khien-ma-tran-led-24x8-tim-hieu-ki-thuat-quet-led-phan-1)  
 
 Let's talk about how to control a 24x8 LED matrix
+
+<iframe width="600" height="400" src="https://www.youtube.com/embed/HM80O1VsLo0" title="4" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+
 #### Prepare
 * 24 x 8 = 192 LEDs
 * A big PCB board
@@ -41,6 +44,8 @@ black is connected, white is not
 When row 1 is connected to (0), set 24 values for row 1 in the matrix would be updated. Next row 2, then row 3, ... This progress is very fast, so human eyes can not distigush between updates. The result is that we only see as in the table
 
 You can verify this by adding a delay when switching rows
+
+<iframe width="600" height="400" src="https://www.youtube.com/embed/wMZcpWFMuls" title="5" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 
 #### IC HC595 connecting  
 <img style="width: 30vw" src="./figure2.jpg"/>
