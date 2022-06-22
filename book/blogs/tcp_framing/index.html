@@ -3,7 +3,7 @@
 <html lang="" >
     <head>
         <meta charset="UTF-8">
-        <title>DNS: EDNS · Tam</title>
+        <title>TCP framing · Tam</title>
         <meta http-equiv="X-UA-Compatible" content="IE=edge" />
         <meta name="description" content="">
         <meta name="generator" content="HonKit 3.7.3">
@@ -11,20 +11,20 @@
         
         
     
-    <link rel="stylesheet" href="../gitbook/style.css">
+    <link rel="stylesheet" href="../../gitbook/style.css">
 
     
             
                 
-                <link rel="stylesheet" href="../gitbook/@honkit/honkit-plugin-highlight/website.css">
+                <link rel="stylesheet" href="../../gitbook/@honkit/honkit-plugin-highlight/website.css">
                 
             
                 
-                <link rel="stylesheet" href="../gitbook/gitbook-plugin-search/search.css">
+                <link rel="stylesheet" href="../../gitbook/gitbook-plugin-search/search.css">
                 
             
                 
-                <link rel="stylesheet" href="../gitbook/gitbook-plugin-fontsettings/website.css">
+                <link rel="stylesheet" href="../../gitbook/gitbook-plugin-fontsettings/website.css">
                 
             
         
@@ -52,14 +52,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
-    <link rel="apple-touch-icon-precomposed" sizes="152x152" href="../gitbook/images/apple-touch-icon-precomposed-152.png">
-    <link rel="shortcut icon" href="../gitbook/images/favicon.ico" type="image/x-icon">
+    <link rel="apple-touch-icon-precomposed" sizes="152x152" href="../../gitbook/images/apple-touch-icon-precomposed-152.png">
+    <link rel="shortcut icon" href="../../gitbook/images/favicon.ico" type="image/x-icon">
 
     
-    <link rel="next" href="tcp_framing.html" />
+    <link rel="next" href="../tcp_socket_handover/" />
     
     
-    <link rel="prev" href="dns_tcp_vs_udp.html" />
+    <link rel="prev" href="../dns_edns/" />
     
 
     </head>
@@ -88,9 +88,9 @@
         
         
     
-        <li class="chapter " data-level="1.1" data-path="../">
+        <li class="chapter " data-level="1.1" data-path="../../">
             
-                <a href="../">
+                <a href="../../">
             
                     
                     Hello
@@ -101,9 +101,9 @@
             
         </li>
     
-        <li class="chapter " data-level="1.2" data-path="./">
+        <li class="chapter " data-level="1.2" data-path="../">
             
-                <a href="./">
+                <a href="../">
             
                     
                     Blogs
@@ -115,9 +115,9 @@
             <ul class="articles">
                 
     
-        <li class="chapter " data-level="1.2.1" data-path="dns_tcp_vs_udp.html">
+        <li class="chapter " data-level="1.2.1" data-path="../dns_tcp_vs_udp/">
             
-                <a href="dns_tcp_vs_udp.html">
+                <a href="../dns_tcp_vs_udp/">
             
                     
                     DNS: TCP vs UDP
@@ -128,9 +128,9 @@
             
         </li>
     
-        <li class="chapter active" data-level="1.2.2" data-path="dns_edns.html">
+        <li class="chapter " data-level="1.2.2" data-path="../dns_edns/">
             
-                <a href="dns_edns.html">
+                <a href="../dns_edns/">
             
                     
                     DNS: EDNS
@@ -141,9 +141,9 @@
             
         </li>
     
-        <li class="chapter " data-level="1.2.3" data-path="tcp_framing.html">
+        <li class="chapter active" data-level="1.2.3" data-path="./">
             
-                <a href="tcp_framing.html">
+                <a href="./">
             
                     
                     TCP framing
@@ -154,9 +154,9 @@
             
         </li>
     
-        <li class="chapter " data-level="1.2.4" data-path="tcp_socket_handover.html">
+        <li class="chapter " data-level="1.2.4" data-path="../tcp_socket_handover/">
             
-                <a href="tcp_socket_handover.html">
+                <a href="../tcp_socket_handover/">
             
                     
                     TCP socket handover
@@ -167,9 +167,9 @@
             
         </li>
     
-        <li class="chapter " data-level="1.2.5" data-path="wireshark.html">
+        <li class="chapter " data-level="1.2.5" data-path="../wireshark/">
             
-                <a href="wireshark.html">
+                <a href="../wireshark/">
             
                     
                     Wireshark, network analysis
@@ -180,12 +180,25 @@
             
         </li>
     
-        <li class="chapter " data-level="1.2.6" data-path="balancer_hashing.html">
+        <li class="chapter " data-level="1.2.6" data-path="../balancer_hashing/">
             
-                <a href="balancer_hashing.html">
+                <a href="../balancer_hashing/">
             
                     
                     Load balancer: hasing
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.2.7" data-path="../arduino_led_scanning/">
+            
+                <a href="../arduino_led_scanning/">
+            
+                    
+                    Arduino: LED scanning
             
                 </a>
             
@@ -198,9 +211,9 @@
             
         </li>
     
-        <li class="chapter " data-level="1.3" data-path="../bucket_list/">
+        <li class="chapter " data-level="1.3" data-path="../../bucket_list/">
             
-                <a href="../bucket_list/">
+                <a href="../../bucket_list/">
             
                     
                     Bucket list
@@ -241,7 +254,7 @@
     <!-- Title -->
     <h1>
         <i class="fa fa-circle-o-notch fa-spin"></i>
-        <a href=".." >DNS: EDNS</a>
+        <a href="../.." >TCP framing</a>
     </h1>
 </div>
 
@@ -256,14 +269,19 @@
     
                                 <section class="normal markdown-section">
                                 
-                                <h3 id="dns-edns">DNS: EDNS</h3>
-<p>Normally, max size of a UDP DNS message is 512 octets, DNS request is usually smaller than this, but the response may be larger. If the server notices the response exceeds the limit, it will set the truncated bit (TC) to on. When the client receives the response with TC bit ON, it must choose to discard the response or fallback to TCP.</p>
-<p>With EDNS, the client and server can negotiate the max size of udp message, recommended value is 1280. EDNS does this by adding a OPT resource record to the additional fields of the request to indicate that the client supports EDNS. When the server receives an EDNS request, if it does not support EDNS, it must respond with a non-EDNS response with RCODE=FORMERR</p>
-<p>EDNS has much more new features, like extended RCODE and many types of Options in OPT record</p>
+                                <h3 id="tcp-framing">TCP framing</h3>
+<p>TCP is different from UDP, probably you&apos;ve heard that TCP is reliable and UDP is not. But what more?</p>
+<p>Another difference between TCP and UDP is TCP is stream-based, and UDP is datagram-based. What do those words mean?</p>
+<p>When a UDP message is sent over a message, it must be sent in one single network packet, both the receiver expects to receive the whole UDP message in one single read system call, if it fails to do that, that message would be discarded. TCP is different, TCP messages are sent over TCP stream, there is not such barrier for a message, both sender and receiver must know and handle that. TCP receiver must be ready to handle not-complete message, each time the receiver calls read() to the os, it can receive any number of the response, it may not be complete, the receiver must hold that data in buffer, and wait for another read(s) to receive the remaining parts of the message. Only after it receives the whole message, it passes that message to upper level (maybe a parser) for further processing. This is called TCP framing for message framing</p>
+<p>There are 2 clues in the TCP message for the receivers to handle framing</p>
+<ol>
+<li>Delimiters: in HTTP, &quot;\r\n&quot; is used to seperate lines, &quot;\r\n\r\n&quot; is used to seperated header and body</li>
+<li>Prefix-length: HTTP has an atrribute &quot;Content-Length&quot; indicates the length of the body (after delimiter &quot;\r\n\r\n&quot;). The TCP receiver uses this number to know how many more bytes it has to wait for a full message.</li>
+</ol>
 <h6 id="20220621">2022/06/21</h6>
 <hr>
 
-<p><i class="fa fa-envelope" style="font-size:18px"> </i> <a href="..">ngothtam.me@gmail.com</a><br><i class="fa fa-github" style="font-size:20px"> </i> <a href="https://github.com/nttams" target="_blank">github</a><br><i class="fa fa-linkedin" style="font-size:20px"> </i> <a href="https://www.linkedin.com/in/ngothtam" target="_blank">linkedin</a></p>
+<p><i class="fa fa-envelope" style="font-size:18px"> </i> <a href="../..">ngothtam.me@gmail.com</a><br><i class="fa fa-github" style="font-size:20px"> </i> <a href="https://github.com/nttams" target="_blank">github</a><br><i class="fa fa-linkedin" style="font-size:20px"> </i> <a href="https://www.linkedin.com/in/ngothtam" target="_blank">linkedin</a></p>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
 
 
@@ -293,12 +311,12 @@
 
             
                 
-                <a href="dns_tcp_vs_udp.html" class="navigation navigation-prev " aria-label="Previous page: DNS: TCP vs UDP">
+                <a href="../dns_edns/" class="navigation navigation-prev " aria-label="Previous page: DNS: EDNS">
                     <i class="fa fa-angle-left"></i>
                 </a>
                 
                 
-                <a href="tcp_framing.html" class="navigation navigation-next " aria-label="Next page: TCP framing">
+                <a href="../tcp_socket_handover/" class="navigation navigation-next " aria-label="Next page: TCP socket handover">
                     <i class="fa fa-angle-right"></i>
                 </a>
                 
@@ -309,7 +327,7 @@
     <script>
         var gitbook = gitbook || [];
         gitbook.push(function() {
-            gitbook.page.hasChanged({"page":{"title":"DNS: EDNS","level":"1.2.2","depth":2,"next":{"title":"TCP framing","level":"1.2.3","depth":2,"path":"blogs/tcp_framing.md","ref":"blogs/tcp_framing.md","articles":[]},"previous":{"title":"DNS: TCP vs UDP","level":"1.2.1","depth":2,"path":"blogs/dns_tcp_vs_udp.md","ref":"blogs/dns_tcp_vs_udp.md","articles":[]},"dir":"ltr"},"config":{"plugins":[],"root":"./src","styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"},"pluginsConfig":{"highlight":{},"search":{},"lunr":{"maxIndexSize":1000000,"ignoreSpecialCharacters":false},"fontsettings":{"theme":"white","family":"sans","size":2},"theme-default":{"styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"},"showLevel":false}},"theme":"default","author":"Ngo Thien Tam","honkit":">= 3.0.0","pdf":{"pageNumbers":true,"fontSize":12,"fontFamily":"Arial","paperSize":"a4","chapterMark":"pagebreak","pageBreaksBefore":"/","margin":{"right":62,"left":62,"top":56,"bottom":56},"embedFonts":false},"structure":{"langs":"LANGS.md","readme":"README.md","glossary":"GLOSSARY.md","summary":"SUMMARY.md"},"variables":{},"title":"Tam","gitbook":"*"},"file":{"path":"blogs/dns_edns.md","mtime":"2022-06-21T08:47:40.220Z","type":"markdown"},"gitbook":{"version":"3.7.3","time":"2022-06-21T09:50:13.368Z"},"basePath":"..","book":{"language":""}});
+            gitbook.page.hasChanged({"page":{"title":"TCP framing","level":"1.2.3","depth":2,"next":{"title":"TCP socket handover","level":"1.2.4","depth":2,"path":"blogs/tcp_socket_handover/README.md","ref":"blogs/tcp_socket_handover/README.md","articles":[]},"previous":{"title":"DNS: EDNS","level":"1.2.2","depth":2,"path":"blogs/dns_edns/README.md","ref":"blogs/dns_edns/README.md","articles":[]},"dir":"ltr"},"config":{"plugins":[],"root":"./src","styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"},"pluginsConfig":{"highlight":{},"search":{},"lunr":{"maxIndexSize":1000000,"ignoreSpecialCharacters":false},"fontsettings":{"theme":"white","family":"sans","size":2},"theme-default":{"styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"},"showLevel":false}},"theme":"default","author":"Ngo Thien Tam","honkit":">= 3.0.0","pdf":{"pageNumbers":true,"fontSize":12,"fontFamily":"Arial","paperSize":"a4","chapterMark":"pagebreak","pageBreaksBefore":"/","margin":{"right":62,"left":62,"top":56,"bottom":56},"embedFonts":false},"structure":{"langs":"LANGS.md","readme":"README.md","glossary":"GLOSSARY.md","summary":"SUMMARY.md"},"variables":{},"title":"Tam","gitbook":"*"},"file":{"path":"blogs/tcp_framing/README.md","mtime":"2022-06-21T08:47:12.448Z","type":"markdown"},"gitbook":{"version":"3.7.3","time":"2022-06-22T13:07:55.905Z"},"basePath":"../..","book":{"language":""}});
         });
     </script>
 </div>
@@ -359,27 +377,27 @@
             book.classList.remove("honkit-cloak");
         }
     </script>
-    <script src="../gitbook/gitbook.js"></script>
-    <script src="../gitbook/theme.js"></script>
+    <script src="../../gitbook/gitbook.js"></script>
+    <script src="../../gitbook/theme.js"></script>
     
         
-        <script src="../gitbook/gitbook-plugin-search/search-engine.js"></script>
-        
-    
-        
-        <script src="../gitbook/gitbook-plugin-search/search.js"></script>
+        <script src="../../gitbook/gitbook-plugin-search/search-engine.js"></script>
         
     
         
-        <script src="../gitbook/gitbook-plugin-lunr/lunr.min.js"></script>
+        <script src="../../gitbook/gitbook-plugin-search/search.js"></script>
         
     
         
-        <script src="../gitbook/gitbook-plugin-lunr/search-lunr.js"></script>
+        <script src="../../gitbook/gitbook-plugin-lunr/lunr.min.js"></script>
         
     
         
-        <script src="../gitbook/gitbook-plugin-fontsettings/fontsettings.js"></script>
+        <script src="../../gitbook/gitbook-plugin-lunr/search-lunr.js"></script>
+        
+    
+        
+        <script src="../../gitbook/gitbook-plugin-fontsettings/fontsettings.js"></script>
         
     
 

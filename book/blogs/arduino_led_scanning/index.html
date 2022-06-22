@@ -1,0 +1,604 @@
+
+<!DOCTYPE HTML>
+<html lang="" >
+    <head>
+        <meta charset="UTF-8">
+        <title>Arduino: LED scanning · Tam</title>
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta name="description" content="">
+        <meta name="generator" content="HonKit 3.7.3">
+        <meta name="author" content="Ngo Thien Tam">
+        
+        
+    
+    <link rel="stylesheet" href="../../gitbook/style.css">
+
+    
+            
+                
+                <link rel="stylesheet" href="../../gitbook/@honkit/honkit-plugin-highlight/website.css">
+                
+            
+                
+                <link rel="stylesheet" href="../../gitbook/gitbook-plugin-search/search.css">
+                
+            
+                
+                <link rel="stylesheet" href="../../gitbook/gitbook-plugin-fontsettings/website.css">
+                
+            
+        
+
+    
+
+    
+        
+    
+        
+    
+        
+    
+        
+    
+        
+    
+        
+    
+
+        
+    
+    
+    <meta name="HandheldFriendly" content="true"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <link rel="apple-touch-icon-precomposed" sizes="152x152" href="../../gitbook/images/apple-touch-icon-precomposed-152.png">
+    <link rel="shortcut icon" href="../../gitbook/images/favicon.ico" type="image/x-icon">
+
+    
+    <link rel="next" href="../../bucket_list/" />
+    
+    
+    <link rel="prev" href="../balancer_hashing/" />
+    
+
+    </head>
+    <body>
+        
+<div class="book honkit-cloak">
+    <div class="book-summary">
+        
+            
+<div id="book-search-input" role="search">
+    <input type="text" placeholder="Type to search" />
+</div>
+
+            
+                <nav role="navigation">
+                
+
+
+<ul class="summary">
+    
+    
+
+    
+
+    
+        
+        
+    
+        <li class="chapter " data-level="1.1" data-path="../../">
+            
+                <a href="../../">
+            
+                    
+                    Hello
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.2" data-path="../">
+            
+                <a href="../">
+            
+                    
+                    Blogs
+            
+                </a>
+            
+
+            
+            <ul class="articles">
+                
+    
+        <li class="chapter " data-level="1.2.1" data-path="../dns_tcp_vs_udp/">
+            
+                <a href="../dns_tcp_vs_udp/">
+            
+                    
+                    DNS: TCP vs UDP
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.2.2" data-path="../dns_edns/">
+            
+                <a href="../dns_edns/">
+            
+                    
+                    DNS: EDNS
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.2.3" data-path="../tcp_framing/">
+            
+                <a href="../tcp_framing/">
+            
+                    
+                    TCP framing
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.2.4" data-path="../tcp_socket_handover/">
+            
+                <a href="../tcp_socket_handover/">
+            
+                    
+                    TCP socket handover
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.2.5" data-path="../wireshark/">
+            
+                <a href="../wireshark/">
+            
+                    
+                    Wireshark, network analysis
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter " data-level="1.2.6" data-path="../balancer_hashing/">
+            
+                <a href="../balancer_hashing/">
+            
+                    
+                    Load balancer: hasing
+            
+                </a>
+            
+
+            
+        </li>
+    
+        <li class="chapter active" data-level="1.2.7" data-path="./">
+            
+                <a href="./">
+            
+                    
+                    Arduino: LED scanning
+            
+                </a>
+            
+
+            
+        </li>
+    
+
+            </ul>
+            
+        </li>
+    
+        <li class="chapter " data-level="1.3" data-path="../../bucket_list/">
+            
+                <a href="../../bucket_list/">
+            
+                    
+                    Bucket list
+            
+                </a>
+            
+
+            
+        </li>
+    
+
+    
+
+    <li class="divider"></li>
+
+    <li>
+        <a href="https://github.com/honkit/honkit" target="blank" class="gitbook-link">
+            Published with HonKit
+        </a>
+    </li>
+</ul>
+
+
+                </nav>
+            
+        
+    </div>
+
+    <div class="book-body">
+        
+            <div class="body-inner">
+                
+                    
+
+<div class="book-header" role="navigation">
+    
+
+    <!-- Title -->
+    <h1>
+        <i class="fa fa-circle-o-notch fa-spin"></i>
+        <a href="../.." >Arduino: LED scanning</a>
+    </h1>
+</div>
+
+
+
+
+                    <div class="page-wrapper" tabindex="-1" role="main">
+                        <div class="page-inner">
+                            
+<div id="book-search-results">
+    <div class="search-noresults">
+    
+                                <section class="normal markdown-section">
+                                
+                                <h3 id="arduino-led-scanning">Arduino: LED scanning</h3>
+<p><a href="http://arduino.vn/bai-viet/614-dieu-khien-ma-tran-led-24x8-tim-hieu-ki-thuat-quet-led-phan-1" target="_blank">Original post in Vietnamese</a>  </p>
+<p>Let&apos;s talk about how to control a 24x8 LED matrix</p>
+<h4 id="prepare">Prepare</h4>
+<ul>
+<li>24 x 8 = 192 LEDs</li>
+<li>A big PCB board</li>
+<li>A smaller PCB board</li>
+<li>24 480Ω resistors</li>
+<li>8 1KΩ resistors</li>
+<li>8 transistors 2N3904</li>
+<li>4 IC HC595 (3 for cols and 1 for row)</li>
+<li>1 Board Arduino Uno</li>
+</ul>
+<h4 id="understand-led-scanning-technique">Understand LED scanning technique</h4>
+<p>The matrix has 8 rows and 24 cols as in the figure
+<img style="width: 100%" src="figure0.jpg"></p>
+<p>To turn on a LED, you need to connect (+) and (-) poles</p>
+<p>For example, if you want LED (B2, Z6) to light up, you need to connect B2 to battery (+) and Z6 to (-).
+But what if you want to light up LED (B2, Z6) and LED (C3, Z8), you can do as I just said, but the LED (C3, Z6) what be lighting up as well, and we don&apos;t want that.</p>
+<p>That&apos;s why we need LED scanning technique</p>
+<h4 id="led-scanning-technique">LED scanning technique</h4>
+<p>Scanning technique instead of supplies power as mentioned, it does in another way. It will &quot;scan&quot;, which means it will connect rows Z1, Z2, Z3, Z4, Z5, Z6, Z7, Z8 to (-) one by one. So, only LED on that row can light up (if it&apos;s column is connected to (+) as well)</p>
+<p>Let&apos;s take a look at this table</p>
+<p><img style="width: 100%" src="figure1.jpg">
+black is connected, white is not</p>
+<p>When row 1 is connected to (0), set 24 values for row 1 in the matrix would be updated. Next row 2, then row 3, ... This progress is very fast, so human eyes can not distigush between updates. The result is that we only see as in the table</p>
+<p>You can verify this by adding a delay when switching rows</p>
+<h4 id="ic-hc595-connecting">IC HC595 connecting</h4>
+<p><img style="width: 30vw" src="figure2.jpg">
+<img style="width: 30vw" src="figure3.jpg"></p>
+<p>Real image<br><img style="width: 100%" src="figure4.jpg"></p>
+<h4 id="lets-code">Let&apos;s code</h4>
+<pre><code class="lang-C++"><span class="hljs-keyword">const</span> byte SPEED = <span class="hljs-number">4</span>;
+<span class="hljs-keyword">const</span> byte LATCH = <span class="hljs-number">2</span>;
+<span class="hljs-keyword">const</span> byte CLOCK_ROW = <span class="hljs-number">3</span>;
+<span class="hljs-keyword">const</span> byte DATA_ROW = <span class="hljs-number">4</span>;
+<span class="hljs-keyword">const</span> byte CLOCK_COL = <span class="hljs-number">5</span>;
+<span class="hljs-keyword">const</span> byte DATA_COL = <span class="hljs-number">6</span>;
+
+<span class="hljs-comment">//for row, {00000001, 00000010, 00000100, 00001000, 00010000, 00100000, 01000000, 10000000};</span>
+<span class="hljs-keyword">const</span> byte ROWS[<span class="hljs-number">8</span>] = {<span class="hljs-number">1</span>, <span class="hljs-number">2</span>, <span class="hljs-number">4</span>, <span class="hljs-number">8</span>, <span class="hljs-number">16</span>, <span class="hljs-number">32</span>, <span class="hljs-number">64</span>, <span class="hljs-number">128</span>};
+
+byte up[<span class="hljs-number">26</span>][<span class="hljs-number">8</span>] = {
+    {B00111111, B01010000, B10010000, B01010000, B00111111, B00000000, B00000000, B00000000},<span class="hljs-comment">// A</span>
+    {B11111111, B10010001, B10010001, B10010001, B01101110, B00000000, B00000000, B00000000},<span class="hljs-comment">// B</span>
+    {B01111110, B10000001, B10000001, B10000001, B10000001, B00000000, B00000000, B00000000},<span class="hljs-comment">// C</span>
+    {B11111111, B10000001, B10000001, B10000001, B01111110, B00000000, B00000000, B00000000},<span class="hljs-comment">// D</span>
+    {B11111111, B10010001, B10010001, B10010001, B10010001, B00000000, B00000000, B00000000},<span class="hljs-comment">// E</span>
+    {B11111111, B10010000, B10010000, B10010000, B10010000, B00000000, B00000000, B00000000},<span class="hljs-comment">// F</span>
+    {B01111110, B10000001, B10000001, B10001001, B01001110, B00001000, B00000000, B00000000},<span class="hljs-comment">// G</span>
+    {B11111111, B00010000, B00010000, B00010000, B11111111, B00000000, B00000000, B00000000},<span class="hljs-comment">// H</span>
+    {B10000001, B10000001, B11111111, B10000001, B10000001, B00000000, B00000000, B00000000},<span class="hljs-comment">// I</span>
+    {B10000011, B10000001, B11111111, B10000000, B10000000, B00000000, B00000000, B00000000},<span class="hljs-comment">// J</span>
+    {B11111111, B00011000, B00100100, B01000010, B10000001, B00000000, B00000000, B00000000},<span class="hljs-comment">// K</span>
+    {B11111111, B00000001, B00000001, B00000001, B00000001, B00000000, B00000000, B00000000},<span class="hljs-comment">// L</span>
+    {B11111111, B01000000, B00100000, B01000000, B11111111, B00000000, B00000000, B00000000},<span class="hljs-comment">// M</span>
+    {B11111111, B01000000, B00100000, B00010000, B11111111, B00000000, B00000000, B00000000},<span class="hljs-comment">// N</span>
+    {B01111110, B10000001, B10000001, B10000001, B01111110, B00000000, B00000000, B00000000},<span class="hljs-comment">// O</span>
+    {B11111111, B10010000, B10010000, B10010000, B01100000, B00000000, B00000000, B00000000},<span class="hljs-comment">// P</span>
+    {B01111110, B10000001, B10000001, B10000101, B01111110, B00000001, B00000000, B00000000},<span class="hljs-comment">// Q</span>
+    {B11111111, B10011000, B10010100, B10010010, B01100001, B00000000, B00000000, B00000000},<span class="hljs-comment">// R</span>
+    {B01100001, B10010001, B10010001, B10010001, B01001110, B00000000, B00000000, B00000000},<span class="hljs-comment">// S</span>
+    {B10000000, B10000000, B11111111, B10000000, B10000000, B00000000, B00000000, B00000000},<span class="hljs-comment">// T</span>
+    {B11111110, B00000001, B00000001, B00000001, B11111110, B00000000, B00000000, B00000000},<span class="hljs-comment">// U</span>
+    {B11111100, B00000010, B00000001, B00000010, B11111100, B00000000, B00000000, B00000000},<span class="hljs-comment">// V</span>
+    {B11111111, B00000010, B00000100, B00000010, B11111111, B00000000, B00000000, B00000000},<span class="hljs-comment">// W</span>
+    {B11000011, B00100100, B00011000, B00100100, B11000011, B00000000, B00000000, B00000000},<span class="hljs-comment">// X</span>
+    {B11100000, B00010000, B00001111, B00010000, B11100000, B00000000, B00000000, B00000000},<span class="hljs-comment">// Y</span>
+    {B10000111, B10001001, B10010001, B10100001, B11000001, B00000000, B00000000, B00000000} <span class="hljs-comment">// Z</span>
+};
+
+byte num[<span class="hljs-number">10</span>][<span class="hljs-number">8</span>] = {
+  {B01111110, B10000001, B10000001, B10000001, B01111110, B00000000, B00000000, B00000000},<span class="hljs-comment">// 0</span>
+  {B00100001, B01000001, B11111111, B00000001, B00000001, B00000000, B00000000, B00000000},<span class="hljs-comment">// 1</span>
+  {B01000011, B10000101, B10001001, B10010001, B01100001, B00000000, B00000000, B00000000},<span class="hljs-comment">// 2</span>
+  {B01000001, B10010001, B10010001, B10010001, B01101110, B00000000, B00000000, B00000000},<span class="hljs-comment">// 3</span>
+  {B11110000, B00010000, B00010000, B11111111, B00000000, B00000000, B00000000, B00000000},<span class="hljs-comment">// 4</span>
+  {B11110001, B10010001, B10010001, B10010001, B10001110, B00000000, B00000000, B00000000},<span class="hljs-comment">// 5</span>
+  {B01111110, B10010001, B10010001, B10010001, B10001110, B00000000, B00000000, B00000000},<span class="hljs-comment">// 6</span>
+  {B10000000, B10000000, B10011111, B10100000, B11000000, B00000000, B00000000, B00000000},<span class="hljs-comment">// 7</span>
+  {B01101110, B10010001, B10010001, B10010001, B01101110, B00000000, B00000000, B00000000},<span class="hljs-comment">// 8</span>
+  {B01100000, B10010001, B10010001, B10010001, B01111110, B00000000, B00000000, B00000000} <span class="hljs-comment">// 9</span>
+};
+
+byte specials[<span class="hljs-number">5</span>][<span class="hljs-number">8</span>] = {
+  {B00011000, B00100100, B01000010, B00100001, B01000010, B00100100, B00011000, B00000000},<span class="hljs-comment">// HEART</span>
+  {B00000001, B00000110, B00000000, B00000000, B00000000, B00000000, B00000000, B00000000},<span class="hljs-comment">// ,</span>
+  {B00000001, B00000000, B00000000, B00000000, B00000000, B00000000, B00000000, B00000000},<span class="hljs-comment">// .</span>
+  {B11111101, B00000000, B00000000, B00000000, B00000000, B00000000, B00000000, B00000000} <span class="hljs-comment">// !</span>
+};
+
+byte leds[<span class="hljs-number">24</span>];
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">copyArr</span><span class="hljs-params">(byte target[<span class="hljs-number">8</span>], byte source[<span class="hljs-number">8</span>])</span> </span>{
+    <span class="hljs-keyword">for</span> (byte i = <span class="hljs-number">0</span>; i &lt; <span class="hljs-number">8</span>; i++) {
+        arget[i] = source[i];
+    }
+}
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">getArrFromChar</span><span class="hljs-params">(<span class="hljs-keyword">char</span> ch, byte arr[<span class="hljs-number">8</span>])</span> </span>{
+    byte ind = (byte) ch;
+
+    <span class="hljs-keyword">if</span> ((ind &gt;= <span class="hljs-number">48</span>) &amp;&amp; (ind &lt;= <span class="hljs-number">57</span>)) {
+        <span class="hljs-built_in">copyArr</span>(arr, num[ind - <span class="hljs-number">48</span>]);
+        <span class="hljs-keyword">return</span>;
+    }
+
+    <span class="hljs-keyword">if</span> ((ind &gt;= <span class="hljs-number">65</span>) &amp;&amp; (ind &lt;= <span class="hljs-number">90</span>)) {
+        <span class="hljs-built_in">copyArr</span>(arr, up[ind - <span class="hljs-number">65</span>]);
+        <span class="hljs-keyword">return</span>;
+    }
+
+    <span class="hljs-built_in"><span class="hljs-keyword">switch</span></span> (ch) {
+        <span class="hljs-keyword">case</span> <span class="hljs-string">&apos;$&apos;</span>: {
+            <span class="hljs-built_in">copyArr</span>(arr, specials[<span class="hljs-number">0</span>]);
+            <span class="hljs-keyword">break</span>;
+        }
+        <span class="hljs-keyword">case</span> <span class="hljs-string">&apos;,&apos;</span>: {
+            <span class="hljs-built_in">copyArr</span>(arr, specials[<span class="hljs-number">1</span>]);
+            <span class="hljs-keyword">break</span>;
+        }
+        <span class="hljs-keyword">case</span> <span class="hljs-string">&apos;.&apos;</span>: {
+            <span class="hljs-built_in">copyArr</span>(arr, specials[<span class="hljs-number">2</span>]);
+            <span class="hljs-keyword">break</span>;
+        }
+        <span class="hljs-keyword">case</span> <span class="hljs-string">&apos;!&apos;</span>: {
+            <span class="hljs-built_in">copyArr</span>(arr, specials[<span class="hljs-number">3</span>]);
+            <span class="hljs-keyword">break</span>;
+        }
+    };
+}
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">addChar</span><span class="hljs-params">(<span class="hljs-keyword">char</span> chr)</span> </span>{
+    byte arr[<span class="hljs-number">8</span>];
+    <span class="hljs-built_in">getArrFromChar</span>(chr, arr);
+    <span class="hljs-keyword">for</span> (byte i = <span class="hljs-number">0</span>; i &lt; <span class="hljs-number">8</span>; i++) {
+        <span class="hljs-keyword">if</span> (arr[i] != <span class="hljs-number">0</span>) {
+            <span class="hljs-built_in">addCol</span>(arr[i]);
+        }
+    }
+    <span class="hljs-built_in">addCol</span>(<span class="hljs-number">0</span>);
+}
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">addCol</span><span class="hljs-params">(byte col)</span> </span>{
+    <span class="hljs-built_in">moveLeft</span>();
+    leds[<span class="hljs-number">23</span>] = col;
+    <span class="hljs-built_in">show</span>(leds, SPEED);
+}
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">moveLeft</span><span class="hljs-params">()</span> </span>{
+    <span class="hljs-keyword">for</span> (byte i = <span class="hljs-number">0</span>; i &lt; <span class="hljs-number">23</span>; i++) {
+        leds[i] = leds[i + <span class="hljs-number">1</span>];
+    }
+}
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">parseString</span><span class="hljs-params">(String s)</span> </span>{
+    s += <span class="hljs-string">&quot;      &quot;</span>;
+    <span class="hljs-keyword">for</span> (byte i = <span class="hljs-number">0</span>; i &lt; s.<span class="hljs-built_in">length</span>(); i++) {
+    <span class="hljs-keyword">if</span> (s.<span class="hljs-built_in">charAt</span>(i) == <span class="hljs-string">&apos; &apos;</span>) {
+        <span class="hljs-built_in">addCol</span>(<span class="hljs-number">0</span>);
+        <span class="hljs-built_in">addCol</span>(<span class="hljs-number">0</span>);
+    } <span class="hljs-keyword">else</span> {
+        <span class="hljs-built_in">addChar</span>(s.<span class="hljs-built_in">charAt</span>(i));
+    }
+    }
+}
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">show</span><span class="hljs-params">(byte leds[<span class="hljs-number">24</span>], byte hold)</span> </span>{
+    <span class="hljs-keyword">for</span> (byte k = <span class="hljs-number">0</span>; k &lt; hold; k++) {
+        <span class="hljs-keyword">for</span> (byte i = <span class="hljs-number">0</span>; i &lt; <span class="hljs-number">8</span>; i++) {
+            byte d[<span class="hljs-number">3</span>] = {<span class="hljs-number">0</span>, <span class="hljs-number">0</span>, <span class="hljs-number">0</span>};
+
+            <span class="hljs-keyword">for</span> (byte j = <span class="hljs-number">0</span>; j &lt; <span class="hljs-number">24</span>; j++) {
+                d[j / <span class="hljs-number">8</span>] = d[j / <span class="hljs-number">8</span>] | ((leds[j] &gt;&gt; i &amp; <span class="hljs-number">1</span>) * ROWS[<span class="hljs-number">7</span> - j % <span class="hljs-number">8</span>]);
+            }
+
+            <span class="hljs-built_in">digitalWrite</span>(LATCH, LOW);
+            <span class="hljs-built_in">shiftOut</span>(DATA_ROW, CLOCK_ROW, LSBFIRST, ROWS[i]);
+            <span class="hljs-built_in">shiftOut</span>(DATA_COL, CLOCK_COL, MSBFIRST, d[<span class="hljs-number">0</span>]);
+            <span class="hljs-built_in">shiftOut</span>(DATA_COL, CLOCK_COL, MSBFIRST, d[<span class="hljs-number">1</span>]);
+            <span class="hljs-built_in">shiftOut</span>(DATA_COL, CLOCK_COL, MSBFIRST, d[<span class="hljs-number">2</span>]);
+            <span class="hljs-built_in">digitalWrite</span>(LATCH, HIGH);
+            <span class="hljs-comment">// uncomment this if you want to learn how LED scanning works</span>
+            <span class="hljs-comment">// delay(10);</span>
+        }
+    }
+}
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">initPin</span><span class="hljs-params">()</span> </span>{
+    <span class="hljs-built_in">pinMode</span>(LATCH, OUTPUT);
+    <span class="hljs-built_in">pinMode</span>(CLOCK_COL, OUTPUT);
+    <span class="hljs-built_in">pinMode</span>(DATA_COL, OUTPUT);
+    <span class="hljs-built_in">pinMode</span>(CLOCK_ROW, OUTPUT);
+    <span class="hljs-built_in">pinMode</span>(DATA_ROW, OUTPUT);
+}
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">setup</span><span class="hljs-params">()</span> </span>{
+    Serial.<span class="hljs-built_in">begin</span>(<span class="hljs-number">9600</span>);
+    <span class="hljs-built_in">initPin</span>();
+}
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">loop</span><span class="hljs-params">()</span> </span>{
+    <span class="hljs-built_in">parseString</span>(<span class="hljs-string">&quot;HAPPY NEW YEAR 2016&quot;</span>);
+}
+</code></pre>
+<h4 id="thats-all-enjoy">That&apos;s all, enjoy.</h4>
+<h6 id="20160211">2016/02/11</h6>
+<hr>
+
+<p><i class="fa fa-envelope" style="font-size:18px"> </i> <a href="../..">ngothtam.me@gmail.com</a><br><i class="fa fa-github" style="font-size:20px"> </i> <a href="https://github.com/nttams" target="_blank">github</a><br><i class="fa fa-linkedin" style="font-size:20px"> </i> <a href="https://www.linkedin.com/in/ngothtam" target="_blank">linkedin</a></p>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+
+
+                                
+                                </section>
+                            
+    </div>
+    <div class="search-results">
+        <div class="has-results">
+            
+            <h1 class="search-results-title"><span class='search-results-count'></span> results matching "<span class='search-query'></span>"</h1>
+            <ul class="search-results-list"></ul>
+            
+        </div>
+        <div class="no-results">
+            
+            <h1 class="search-results-title">No results matching "<span class='search-query'></span>"</h1>
+            
+        </div>
+    </div>
+</div>
+
+                        </div>
+                    </div>
+                
+            </div>
+
+            
+                
+                <a href="../balancer_hashing/" class="navigation navigation-prev " aria-label="Previous page: Load balancer: hasing">
+                    <i class="fa fa-angle-left"></i>
+                </a>
+                
+                
+                <a href="../../bucket_list/" class="navigation navigation-next " aria-label="Next page: Bucket list">
+                    <i class="fa fa-angle-right"></i>
+                </a>
+                
+            
+        
+    </div>
+
+    <script>
+        var gitbook = gitbook || [];
+        gitbook.push(function() {
+            gitbook.page.hasChanged({"page":{"title":"Arduino: LED scanning","level":"1.2.7","depth":2,"next":{"title":"Bucket list","level":"1.3","depth":1,"path":"bucket_list/README.md","ref":"bucket_list/README.md","articles":[]},"previous":{"title":"Load balancer: hasing","level":"1.2.6","depth":2,"path":"blogs/balancer_hashing/README.md","ref":"blogs/balancer_hashing/README.md","articles":[]},"dir":"ltr"},"config":{"plugins":[],"root":"./src","styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"},"pluginsConfig":{"highlight":{},"search":{},"lunr":{"maxIndexSize":1000000,"ignoreSpecialCharacters":false},"fontsettings":{"theme":"white","family":"sans","size":2},"theme-default":{"styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"},"showLevel":false}},"theme":"default","author":"Ngo Thien Tam","honkit":">= 3.0.0","pdf":{"pageNumbers":true,"fontSize":12,"fontFamily":"Arial","paperSize":"a4","chapterMark":"pagebreak","pageBreaksBefore":"/","margin":{"right":62,"left":62,"top":56,"bottom":56},"embedFonts":false},"structure":{"langs":"LANGS.md","readme":"README.md","glossary":"GLOSSARY.md","summary":"SUMMARY.md"},"variables":{},"title":"Tam","gitbook":"*"},"file":{"path":"blogs/arduino_led_scanning/README.md","mtime":"2022-06-22T13:06:33.077Z","type":"markdown"},"gitbook":{"version":"3.7.3","time":"2022-06-22T13:07:55.905Z"},"basePath":"../..","book":{"language":""}});
+        });
+    </script>
+</div>
+
+        
+    <noscript>
+        <style>
+            .honkit-cloak {
+                display: block !important;
+            }
+        </style>
+    </noscript>
+    <script>
+        // Restore sidebar state as critical path for prevent layout shift
+        function __init__getSidebarState(defaultValue){
+            var baseKey = "";
+            var key = baseKey + ":sidebar";
+            try {
+                var value = localStorage[key];
+                if (value === undefined) {
+                    return defaultValue;
+                }
+                var parsed = JSON.parse(value);
+                return parsed == null ? defaultValue : parsed;
+            } catch (e) {
+                return defaultValue;
+            }
+        }
+        function __init__restoreLastSidebarState() {
+            var isMobile = window.matchMedia("(max-width: 600px)").matches;
+            if (isMobile) {
+                // Init last state if not mobile
+                return;
+            }
+            var sidebarState = __init__getSidebarState(true);
+            var book = document.querySelector(".book");
+            // Show sidebar if it enabled
+            if (sidebarState && book) {
+                book.classList.add("without-animation", "with-summary");
+            }
+        }
+
+        try {
+            __init__restoreLastSidebarState();
+        } finally {
+            var book = document.querySelector(".book");
+            book.classList.remove("honkit-cloak");
+        }
+    </script>
+    <script src="../../gitbook/gitbook.js"></script>
+    <script src="../../gitbook/theme.js"></script>
+    
+        
+        <script src="../../gitbook/gitbook-plugin-search/search-engine.js"></script>
+        
+    
+        
+        <script src="../../gitbook/gitbook-plugin-search/search.js"></script>
+        
+    
+        
+        <script src="../../gitbook/gitbook-plugin-lunr/lunr.min.js"></script>
+        
+    
+        
+        <script src="../../gitbook/gitbook-plugin-lunr/search-lunr.js"></script>
+        
+    
+        
+        <script src="../../gitbook/gitbook-plugin-fontsettings/fontsettings.js"></script>
+        
+    
+
+    </body>
+</html>
+
