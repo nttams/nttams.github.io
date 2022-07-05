@@ -4,6 +4,8 @@
 
 {% block content %}
 
-A dns server and client written in Golang. There were a Rust version of DnsClient [here](/projects/dns_client_rust/README.md), but it has been deprecated
+A dns server and client written in Golang. There were a Rust version of DnsClient [here](https://github.com/nttams/dns_client), but it has been deprecated
+
+(To be continued)
 
 {% endblock %}

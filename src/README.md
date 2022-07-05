@@ -9,10 +9,9 @@ After 2 years in automation industry, I switched my career to software engineeri
 
 ### Projects
 Most of my projects are on [github](https://github.com/nttams)
-* DNS server & client in Golang. [[src](https://github.com/nttams/dns), [doc](https://github.com/nttams/dns)]
-* DNS client in Rust. [[src](https://github.com/nttams/dns_client), [doc](https://github.com/nttams/dns_client)]
-* Assistant Jarvis, a web server for task manager, media server. [[src](https://github.com/nttams/jarvis), [doc](https://github.com/nttams/jarvis)]
-* Stock crawler. [[src](https://github.com/nttams/stock_crawler), [doc](https://github.com/nttams/stock_crawler)]
+* DNS server & client in Golang. [[src](https://github.com/nttams/dns), [doc](/projects/dns_go/README.md)]
+* Assistant Jarvis, a web server for task manager, media server. [[src](https://github.com/nttams/jarvis), [doc](/projects/jarvis/README.md)]
+* Stock crawler. [[src](https://github.com/nttams/stock_crawler)]
 
 ### Some beautiful places in Vietnam I have visited
 * [Ta Nang Phan Dung](https://www.google.com/search?q=ta+nang+phan+dung&tbm=isch)
