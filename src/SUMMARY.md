@@ -9,4 +9,7 @@
     * [Wireshark, network analysis](blogs/wireshark/README.md)
     * [Load balancer: hashing](blogs/balancer_hashing/README.md)
     * [Arduino: LED scanning](blogs/arduino_led_scanning/README.md)
+* [Projects](projects/README.md)
+    * [Dns Client in Rust](projects/dns_client_rust/README.md)
+    * [Dns Client and Server in Golang](projects/dns_go/README.md)
 * [Bucket list](bucket_list/README.md)

@@ -3,7 +3,7 @@
 <html lang="" >
     <head>
         <meta charset="UTF-8">
-        <title>TCP framing · Tam</title>
+        <title>Dns Client and Server in Golang · Tam</title>
         <meta http-equiv="X-UA-Compatible" content="IE=edge" />
         <meta name="description" content="">
         <meta name="generator" content="HonKit 3.7.4">
@@ -56,10 +56,10 @@
     <link rel="shortcut icon" href="../../gitbook/images/favicon.ico" type="image/x-icon">
 
     
-    <link rel="next" href="../tcp_socket_handover/" />
+    <link rel="next" href="../../bucket_list/" />
     
     
-    <link rel="prev" href="../dns_edns/" />
+    <link rel="prev" href="../dns_client_rust/" />
     
 
     </head>
@@ -101,9 +101,9 @@
             
         </li>
     
-        <li class="chapter " data-level="1.2" data-path="../">
+        <li class="chapter " data-level="1.2" data-path="../../blogs/">
             
-                <a href="../">
+                <a href="../../blogs/">
             
                     
                     Blogs
@@ -115,9 +115,9 @@
             <ul class="articles">
                 
     
-        <li class="chapter " data-level="1.2.1" data-path="../dns_tcp_vs_udp/">
+        <li class="chapter " data-level="1.2.1" data-path="../../blogs/dns_tcp_vs_udp/">
             
-                <a href="../dns_tcp_vs_udp/">
+                <a href="../../blogs/dns_tcp_vs_udp/">
             
                     
                     DNS: TCP vs UDP
@@ -128,9 +128,9 @@
             
         </li>
     
-        <li class="chapter " data-level="1.2.2" data-path="../dns_edns/">
+        <li class="chapter " data-level="1.2.2" data-path="../../blogs/dns_edns/">
             
-                <a href="../dns_edns/">
+                <a href="../../blogs/dns_edns/">
             
                     
                     DNS: EDNS
@@ -141,9 +141,9 @@
             
         </li>
     
-        <li class="chapter active" data-level="1.2.3" data-path="./">
+        <li class="chapter " data-level="1.2.3" data-path="../../blogs/tcp_framing/">
             
-                <a href="./">
+                <a href="../../blogs/tcp_framing/">
             
                     
                     TCP framing
@@ -154,9 +154,9 @@
             
         </li>
     
-        <li class="chapter " data-level="1.2.4" data-path="../tcp_socket_handover/">
+        <li class="chapter " data-level="1.2.4" data-path="../../blogs/tcp_socket_handover/">
             
-                <a href="../tcp_socket_handover/">
+                <a href="../../blogs/tcp_socket_handover/">
             
                     
                     TCP socket handover
@@ -167,9 +167,9 @@
             
         </li>
     
-        <li class="chapter " data-level="1.2.5" data-path="../wireshark/">
+        <li class="chapter " data-level="1.2.5" data-path="../../blogs/wireshark/">
             
-                <a href="../wireshark/">
+                <a href="../../blogs/wireshark/">
             
                     
                     Wireshark, network analysis
@@ -180,9 +180,9 @@
             
         </li>
     
-        <li class="chapter " data-level="1.2.6" data-path="../balancer_hashing/">
+        <li class="chapter " data-level="1.2.6" data-path="../../blogs/balancer_hashing/">
             
-                <a href="../balancer_hashing/">
+                <a href="../../blogs/balancer_hashing/">
             
                     
                     Load balancer: hashing
@@ -193,9 +193,9 @@
             
         </li>
     
-        <li class="chapter " data-level="1.2.7" data-path="../arduino_led_scanning/">
+        <li class="chapter " data-level="1.2.7" data-path="../../blogs/arduino_led_scanning/">
             
-                <a href="../arduino_led_scanning/">
+                <a href="../../blogs/arduino_led_scanning/">
             
                     
                     Arduino: LED scanning
@@ -211,9 +211,9 @@
             
         </li>
     
-        <li class="chapter " data-level="1.3" data-path="../../projects/">
+        <li class="chapter " data-level="1.3" data-path="../">
             
-                <a href="../../projects/">
+                <a href="../">
             
                     
                     Projects
@@ -225,9 +225,9 @@
             <ul class="articles">
                 
     
-        <li class="chapter " data-level="1.3.1" data-path="../../projects/dns_client_rust/">
+        <li class="chapter " data-level="1.3.1" data-path="../dns_client_rust/">
             
-                <a href="../../projects/dns_client_rust/">
+                <a href="../dns_client_rust/">
             
                     
                     Dns Client in Rust
@@ -238,9 +238,9 @@
             
         </li>
     
-        <li class="chapter " data-level="1.3.2" data-path="../../projects/dns_go/">
+        <li class="chapter active" data-level="1.3.2" data-path="./">
             
-                <a href="../../projects/dns_go/">
+                <a href="./">
             
                     
                     Dns Client and Server in Golang
@@ -299,7 +299,7 @@
     <!-- Title -->
     <h1>
         <i class="fa fa-circle-o-notch fa-spin"></i>
-        <a href="../.." >TCP framing</a>
+        <a href="../.." >Dns Client and Server in Golang</a>
     </h1>
 </div>
 
@@ -315,21 +315,14 @@
                                 <section class="normal markdown-section">
                                 
                                 <div>
-    <h4 style="margin: 0px; padding: 0px" id="tcp-framing">TCP framing</h4>
-    <p style="margin: 0px; padding: 0px; color: #696969; font-size: 1.5rem"> 2022/06/21 </p>
+    <h4 style="margin: 0px; padding: 0px" id="dns-client-and-server-in-golang">Dns Client and Server in Golang</h4>
+    <p style="margin: 0px; padding: 0px; color: #696969; font-size: 1.5rem"> 2022/07/05 </p>
     <hr style="margin: 5px 0px 10px 0px; padding: 0px">
 </div>
 
 
 
-<p>TCP is different from UDP, probably you&apos;ve heard that TCP is reliable and UDP is not. But what more?</p>
-<p>Another difference between TCP and UDP is TCP is stream-based, and UDP is datagram-based. What do those words mean?</p>
-<p>When a UDP message is sent over a message, it must be sent in one single network packet, both the receiver expects to receive the whole UDP message in one single read system call, if it fails to do that, that message would be discarded. TCP is different, TCP messages are sent over TCP stream, there is not such barrier for a message, both sender and receiver must know and handle that. TCP receiver must be ready to handle not-complete message, each time the receiver calls read() to the os, it can receive any number of the response, it may not be complete, the receiver must hold that data in buffer, and wait for another read(s) to receive the remaining parts of the message. Only after it receives the whole message, it passes that message to upper level (maybe a parser) for further processing. This is called TCP framing for message framing</p>
-<p>There are 2 clues in the TCP message for the receivers to handle framing</p>
-<ol>
-<li>Delimiters: in HTTP, &quot;\r\n&quot; is used to seperate lines, &quot;\r\n\r\n&quot; is used to seperated header and body</li>
-<li>Prefix-length: HTTP has an atrribute &quot;Content-Length&quot; indicates the length of the body (after delimiter &quot;\r\n\r\n&quot;). The TCP receiver uses this number to know how many more bytes it has to wait for a full message.</li>
-</ol>
+<p>A dns server and client written in Golang. There were a Rust version of DnsClient <a href="../dns_client_rust/">here</a>, but it has been deprecated</p>
 <hr>
 
 <p><i class="fa fa-envelope" style="font-size:18px"> </i> <a href="../..">ngothtam.me@gmail.com</a><br><i class="fa fa-github" style="font-size:20px"> </i> <a href="https://github.com/nttams" target="_blank">github</a><br><i class="fa fa-linkedin" style="font-size:20px"> </i> <a href="https://www.linkedin.com/in/ngothtam" target="_blank">linkedin</a></p>
@@ -362,12 +355,12 @@
 
             
                 
-                <a href="../dns_edns/" class="navigation navigation-prev " aria-label="Previous page: DNS: EDNS">
+                <a href="../dns_client_rust/" class="navigation navigation-prev " aria-label="Previous page: Dns Client in Rust">
                     <i class="fa fa-angle-left"></i>
                 </a>
                 
                 
-                <a href="../tcp_socket_handover/" class="navigation navigation-next " aria-label="Next page: TCP socket handover">
+                <a href="../../bucket_list/" class="navigation navigation-next " aria-label="Next page: Bucket list">
                     <i class="fa fa-angle-right"></i>
                 </a>
                 
@@ -378,7 +371,7 @@
     <script>
         var gitbook = gitbook || [];
         gitbook.push(function() {
-            gitbook.page.hasChanged({"page":{"title":"TCP framing","level":"1.2.3","depth":2,"next":{"title":"TCP socket handover","level":"1.2.4","depth":2,"path":"blogs/tcp_socket_handover/README.md","ref":"blogs/tcp_socket_handover/README.md","articles":[]},"previous":{"title":"DNS: EDNS","level":"1.2.2","depth":2,"path":"blogs/dns_edns/README.md","ref":"blogs/dns_edns/README.md","articles":[]},"dir":"ltr"},"config":{"plugins":[],"root":"./src","styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"},"pluginsConfig":{"highlight":{},"search":{},"lunr":{"maxIndexSize":1000000,"ignoreSpecialCharacters":false},"fontsettings":{"theme":"white","family":"sans","size":2},"theme-default":{"styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"},"showLevel":false}},"theme":"default","author":"Ngo Thien Tam","honkit":">= 3.0.0","pdf":{"pageNumbers":true,"fontSize":12,"fontFamily":"Arial","paperSize":"a4","chapterMark":"pagebreak","pageBreaksBefore":"/","margin":{"right":62,"left":62,"top":56,"bottom":56},"embedFonts":false},"structure":{"langs":"LANGS.md","readme":"README.md","glossary":"GLOSSARY.md","summary":"SUMMARY.md"},"variables":{},"title":"Tam","gitbook":"*"},"file":{"path":"blogs/tcp_framing/README.md","mtime":"2022-07-05T06:43:05.219Z","type":"markdown"},"gitbook":{"version":"3.7.4","time":"2022-07-05T07:13:48.416Z"},"basePath":"../..","book":{"language":""}});
+            gitbook.page.hasChanged({"page":{"title":"Dns Client and Server in Golang","level":"1.3.2","depth":2,"next":{"title":"Bucket list","level":"1.4","depth":1,"path":"bucket_list/README.md","ref":"bucket_list/README.md","articles":[]},"previous":{"title":"Dns Client in Rust","level":"1.3.1","depth":2,"path":"projects/dns_client_rust/README.md","ref":"projects/dns_client_rust/README.md","articles":[]},"dir":"ltr"},"config":{"plugins":[],"root":"./src","styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"},"pluginsConfig":{"highlight":{},"search":{},"lunr":{"maxIndexSize":1000000,"ignoreSpecialCharacters":false},"fontsettings":{"theme":"white","family":"sans","size":2},"theme-default":{"styles":{"website":"styles/website.css","pdf":"styles/pdf.css","epub":"styles/epub.css","mobi":"styles/mobi.css","ebook":"styles/ebook.css","print":"styles/print.css"},"showLevel":false}},"theme":"default","author":"Ngo Thien Tam","honkit":">= 3.0.0","pdf":{"pageNumbers":true,"fontSize":12,"fontFamily":"Arial","paperSize":"a4","chapterMark":"pagebreak","pageBreaksBefore":"/","margin":{"right":62,"left":62,"top":56,"bottom":56},"embedFonts":false},"structure":{"langs":"LANGS.md","readme":"README.md","glossary":"GLOSSARY.md","summary":"SUMMARY.md"},"variables":{},"title":"Tam","gitbook":"*"},"file":{"path":"projects/dns_go/README.md","mtime":"2022-07-05T07:13:42.566Z","type":"markdown"},"gitbook":{"version":"3.7.4","time":"2022-07-05T07:13:48.416Z"},"basePath":"../..","book":{"language":""}});
         });
     </script>
 </div>

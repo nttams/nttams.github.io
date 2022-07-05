@@ -3,23 +3,16 @@
 
 I'm Tam, a software engineer. I like coding, hiking, and beaches. Currently, I'm interested in C++, Golang, Rust, and system designs.
 
-I graduated from Bach Khoa university as an mechatronics engineer. I had worked as a part-time automation engineer from 3rd year for 1.5 years, and 6 more months as a full time engineer. Most of work were to program PLC, 6-axis robot controllers, and motion controllers. I also collaborate with mechanical and electrical teams to design and assemble automation systems.
+I graduated as an mechatronics engineer. I had worked as a part-time automation engineer from 3rd year for 1.5 years, and 6 more months as a full time engineer. Most of work were to program PLC, 6-axis robot controllers, and motion controllers. I also collaborate with mechanical and electrical teams to design and assemble automation systems.
 
-After 2 years in automation industry, I switched my career to software engineering. The first year, I worked in telecom industry, with a very large-scaled distributed system. Most of my daily jobs were to develop and maintain SIP framework, caching, blacklisting, and network monitoring mechanisms. The last 4 months at the same company, I worked as a customer support engineer, the most important responsibility was to help customers to recover live systems as soon as posible when something went wrong. I also answered queries from customers from all over the world about system configuration, architectures, and behaviors.
-
-Some of my skills:
-* C++,
-* SIP, DNS protocols
-* UDP/TCP (socket handover, framing, queueing)
-* Singleton, state machine, caching
-* Linux, git
+After 2 years in automation industry, I switched my career to software engineering. The first year, I worked in telecom industry, with a very large-scaled distributed system. Most of my daily jobs were to develop and maintain SIP framework, TCP/Socket library, DNS client, caching, blacklisting, and network monitoring mechanisms using C++. The last 4 months at the same company, I worked as a customer support engineer, the most important responsibility was to help customers to recover live systems as soon as posible when something went wrong. I also answered queries from customers from all over the world about system configuration, architectures, and behaviors.
 
 ### Projects
 Most of my projects are on [github](https://github.com/nttams)
-* [DNS client](https://github.com/nttams/dns_client)
-* [DNS server](https://github.com/nttams/dns_server)
-* [Stock crawler](https://github.com/nttams/stock_crawler)
-* [Algorithms](https://github.com/nttams/algorithms)
+* DNS server & client in Golang. [[src](https://github.com/nttams/dns), [doc](https://github.com/nttams/dns)]
+* DNS client in Rust. [[src](https://github.com/nttams/dns_client), [doc](https://github.com/nttams/dns_client)]
+* Assistant Jarvis, a web server for task manager, media server. [[src](https://github.com/nttams/jarvis), [doc](https://github.com/nttams/jarvis)]
+* Stock crawler. [[src](https://github.com/nttams/stock_crawler), [doc](https://github.com/nttams/stock_crawler)]
 
 ### Some beautiful places in Vietnam I have visited
 * [Ta Nang Phan Dung](https://www.google.com/search?q=ta+nang+phan+dung&tbm=isch)
