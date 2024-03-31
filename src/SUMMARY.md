@@ -13,4 +13,3 @@
     * [Dns Client & Server in Golang](projects/dns_go/README.md)
     * [Jarvis](projects/jarvis/README.md)
 * [Bucket list](bucket_list/README.md)
-* [NT list](nt_list/README.md)

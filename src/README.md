@@ -18,6 +18,9 @@ Most of my projects are on [github](https://github.com/nttams)
 * [Chua Chan mountain](https://www.google.com/search?q=nui+chua+chan&tbm=isch)
 * [K50 waterfall](https://www.google.com/search?q=thac+k50&tbm=isch)
 * [Quy Nhon Beach](https://www.google.com/search?q=quy+nhon+beach&tbm=isch)
+* [Bidoup](https://www.google.com/search?q=bidoup&tbm=isch)
+* [Ta Dung](https://www.google.com/search?q=ta+dung&tbm=isch)
+* [Ho Tri An](https://www.google.com/search?q=ho+tri+an&tbm=isch)
 
 
 {% include "/footer.md" %}
