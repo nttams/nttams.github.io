@@ -1,0 +1,8 @@
+title: "My Simple Blog"
+description: "Dead-simple blog, now Markdown-powered."
+theme: null
+markdown: kramdown
+plugins:
+  - jekyll-feed
+baseurl: ""
+url: ""
