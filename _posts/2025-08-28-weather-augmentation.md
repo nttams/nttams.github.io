@@ -8,51 +8,48 @@ date: 2025-08-28
 
 ## 1. Problem
 
-An HTTP server receives traffic from all over the world. For some reason, you want to augment weather data to incoming HTTP request, but only requests originating from some certain places (e.g. USA).
-- In HTTP request, there is geo data (latitude/longitude)
-- Weather data is fetched from an external vendor API, and it usually takes seconds to respond
-- Our HTTP server must process and respond in <100ms
-
----
+An HTTP server receives traffic from all over the world. For some reason, we want to augment weather data to incoming request, but only requests originating from some certain places (e.g. USA).
+- In request, there is geo data (latitude/longitude)
+- Weather data is fetched from an weather API, and it usually takes seconds to respond
+- Our HTTP server must process the request and respond in less than 100ms
 
 ## 2. How to know if the request is coming from certain places?
 
-When a HTTP request arrives, it contain geo data (latitude/longitude), to know if the request comes from USA, we can use data from Natural Earth (https://www.naturalearthdata.com/), they provide country and region polygons, then we can apply a ray casting algorithm to determine whether the latitude/longitude lies within polygon(s)
+When a request arrives, it contains geo data (latitude/longitude), to check if the request comes from USA, we can use data from [Natural Earth](https://www.naturalearthdata.com/), they provide country and region polygons, then we can apply ray casting algorithm to determine whether the latitude/longitude lies within polygon(s)
 
 This will work, but has some drawbacks:
 - Ray casting requires extra work
 - When number of polygons increases, computation time increases too
 
 ### 2.1. Geo indexing and move heavy computation into preprocessing
-- We use geo indexing system (Uber H3), to divide the Earth's surface into cells. Each cell has a unique ID. 
+- We use geo indexing system (Uber H3), to divide the Earth surface into cells. Each cell has a unique ID. 
 - Preprocessing: convert polygons to cell sets: instead of storing polygons, we preprocess polygons into sets of cell IDs
 - Fast runtime lookup:
-	- When request comes, convert the incoming latitude/longitude to corresponding cell ID, this is O(1)
-	- Simply check if the cell ID is in the set of cells. This is O(1) too
+	- When request comes, convert the its latitude/longitude to corresponding cell ID, this is O(1)
+	- Simply check if the cell ID is in any set of cells. This is O(1) too
 
 ### 2.2. Choosing the right resolution (cell size)
-Uber H3 divides the Earth into hexagonal cells at multiple resolutions
-- High resolution → smaller cells, higher accuracy
-- Low resolution → larger cells, less accuracy
+Uber H3 divides the Earth surface into hexagonal cells at multiple resolutions.
+High resolution -> smaller cells -> higher accuracy -> require more storage and API calls
 
-https://h3geo.org/docs/core-library/restable/
+[Uber h3 cell size](https://h3geo.org/docs/core-library/restable/)
 
-## 3. Caching & weather refresher
+## 3. Hit-miss caching mechanism
 
-Vendor weather API usually takes seconds to respond, that is not suitable for our real-time HTTP server, so we use a two-layered approach:
+Weather API usually takes seconds to respond, that's not suitable for our real-time HTTP server, so we do:
 
 Step 1: HTTP Server
 - Receives a request
 - Extracts the latitude/longitude, converts into an cell ID
+- Checks if this cell ID needs weather data
 - Looks up weather data in Redis for that cell ID
 	- If data is found: augment the request with weather data
-	- If data is not found: add the cell ID to a Redis set(`cells_need_to_fetch`)
+	- If data is not found: add the cell ID to Redis set: `cells_need_to_fetch`
 
-Step 2: Weather refresher
-- A separate service runs periodically (e.g., every 10s)
+Step 2: Weather refresher, a separate service runs periodically (every 10s)
 - Reads pending cell IDs from the Redis set `cells_need_to_fetch`
-- Converts cell IDs back to latitude/longitude
-- Fetches weather data from the external vendor API
+- Converts cell IDs to latitudes/longitudes
+- Fetches weather data for those latitudes/longitudes from the weather API
 - Updates Redis with the new weather data for those cells
 
 ## 4. Flow charts
@@ -102,7 +99,7 @@ Step 2: Weather refresher
                         |
                         v
             +-----------+-----------+
-            |    Call Vendor API    |
+            |    Call weather API   |
             +-----------+-----------+
                         |
                         v

@@ -3,14 +3,6 @@ layout: default
 title: "Home"
 ---
 
-[Github](https://github.com/nttams)
-[Linkedin](https://www.linkedin.com/in/ngothtam/)
-
-
-TO BE UPDATED
-
-## Posts
-
 <ul class="post-list">
 {% for post in site.posts %}
   <li>
@@ -21,3 +13,6 @@ TO BE UPDATED
   </li>
 {% endfor %}
 </ul>
+
+[Github](https://github.com/nttams)  
+[Linkedin](https://www.linkedin.com/in/ngothtam/)
