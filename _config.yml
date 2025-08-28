@@ -6,3 +6,4 @@ plugins:
   - jekyll-feed
 baseurl: ""
 url: ""
+permalink: /:title/
