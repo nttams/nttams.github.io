@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Large map is bad for Golang GC"
-date: 2025-10-22
+date: 2025-03-21
 ---
 
 ## Large map (of pointers, e.g. string) is bad for Golang garbage collector

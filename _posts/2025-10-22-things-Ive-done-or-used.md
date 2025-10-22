@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Things I've done or used"
-date: 2020-01-01
+date: 2025-10-22
 ---
 
 Things I'm confident about:
