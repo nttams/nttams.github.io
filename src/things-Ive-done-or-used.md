@@ -1,7 +1,6 @@
 # Things I've done or used
 2025-10-22, Ho Chi Minh city
 
-
 #### 0a. Things I'm confident about
 - Golang (goroutine, channel, mutex, atomic, profiling, continuous profiling)
 - C++  
@@ -61,3 +60,6 @@ Link: [https://github.com/nttams/geodata](https://github.com/nttams/geodata)
 #### 13. Use redis as caching layer for real-time system, apply hit-miss and batching update mechanism
 
 #### 14. Implementing EDNS(RFC6891) support for C++ DNS client 
+
+#### 15. Switch from golang std encoding/json to segmentio/encoding/json
+Interfaces are almost identical, performance is much better
