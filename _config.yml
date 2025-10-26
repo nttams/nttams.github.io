@@ -1,0 +1,9 @@
+title: "Tam's space"
+description: ""
+theme: null
+markdown: kramdown
+plugins:
+  - jekyll-feed
+baseurl: ""
+url: ""
+permalink: /:title/
