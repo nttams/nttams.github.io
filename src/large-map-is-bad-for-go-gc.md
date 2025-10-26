@@ -1,10 +1,5 @@
----
-layout: post
-title: "Large map is bad for Golang GC"
-date: 2025-03-21
----
-
 ## Large map (of pointers, e.g. string) is bad for Golang garbage collector
+2025-03-21, Ho Chi Minh city
 
 I used to build new reverse proxy service in golang, to apply some custom routing logics for upstream
 - Specs: 10 nodes, 4 cores/node, ~3KB per request.

@@ -1,14 +1,12 @@
----
-layout: post
-title: "Things I've done or used"
-date: 2025-10-22
----
+# Things I've done or used
+2025-10-22, Ho Chi Minh city
 
-Things I'm confident about:
+
+#### 0a. Things I'm confident about
 - Golang (goroutine, channel, mutex, atomic, profiling, continuous profiling)
 - C++  
 
-Things I'm familiar:
+#### 0b. Things I'm familiar with
 - Rust, python, java, bash
 - Redis, mongoDB, kafka, aerospike
 - AWS S3/SQS,

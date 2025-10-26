@@ -1,10 +1,5 @@
----
-layout: post
-title: "Weather augmentation"
-date: 2025-08-28
----
-
-## Real-time weather augmentation for HTTP requests
+# Real-time weather augmentation for HTTP requests
+2025-08-28, Ho Chi Minh city
 
 ### 1. Problem
 

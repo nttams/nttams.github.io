@@ -1,0 +1,391 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Tam&#x27;s space</title>
+        <meta name="robots" content="noindex">
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="highlight-css" href="highlight.css">
+        <link rel="stylesheet" id="tomorrow-night-css" href="tomorrow-night.css">
+        <link rel="stylesheet" id="ayu-highlight-css" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "";
+            const default_light_theme = "light";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "searchindex.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="toc.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+            </noscript>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Tam&#x27;s space</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <i class="fa fa-spinner fa-spin"></i>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="intro"><a class="header" href="#intro">Intro</a></h1>
+<p>Hey, I am an engineer</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="things-ive-done-or-used"><a class="header" href="#things-ive-done-or-used">Things I've done or used</a></h1>
+<p>2025-10-22, Ho Chi Minh city</p>
+<h4 id="0a-things-im-confident-about"><a class="header" href="#0a-things-im-confident-about">0a. Things I'm confident about</a></h4>
+<ul>
+<li>Golang (goroutine, channel, mutex, atomic, profiling, continuous profiling)</li>
+<li>C++</li>
+</ul>
+<h4 id="0b-things-im-familiar-with"><a class="header" href="#0b-things-im-familiar-with">0b. Things I'm familiar with</a></h4>
+<ul>
+<li>Rust, python, java, bash</li>
+<li>Redis, mongoDB, kafka, aerospike</li>
+<li>AWS S3/SQS,</li>
+<li>GCP GCS/BigTable/BigQuery/GCS</li>
+<li>K8s, docker, nginx, grafana, prometheus</li>
+<li>HTTP, DNS protocols</li>
+<li>Protobuf, websocket</li>
+</ul>
+<h4 id="1-reverse-proxy-work-project"><a class="header" href="#1-reverse-proxy-work-project">1. Reverse proxy [work project]</a></h4>
+<p>Link: [Reverse proxy]({% link _posts/2025-03-21-large-map-is-bad-for-go-gc.md %})</p>
+<h4 id="2-weather-targeting-work-project"><a class="header" href="#2-weather-targeting-work-project">2. Weather targeting [work project]</a></h4>
+<p>Link: [Weather targeting]({% link _posts/2025-08-28-weather-augmentation.md %})</p>
+<h4 id="3-optimize-c-application-performance"><a class="header" href="#3-optimize-c-application-performance">3. Optimize C++ application performance</a></h4>
+<p>Identify and resolve bottleneck in C++ real-time engine, by moving expensive computations from single message passing thread to multiple worker threads.<br />
+Result: reduce from 36-core to 16-core for 50 nodes (from 1800 cores to 800 cores)</p>
+<p>TODO: will write more about this later</p>
+<h4 id="4-debug-c-segmentation-fault-coredump-with-gdb"><a class="header" href="#4-debug-c-segmentation-fault-coredump-with-gdb">4. Debug C++ segmentation fault coredump with GDB</a></h4>
+<h4 id="5-profiling-golang-application"><a class="header" href="#5-profiling-golang-application">5. Profiling golang application:</a></h4>
+<p>https://go.dev/doc/diagnostics</p>
+<h4 id="6-continuous-profiling-golang-application-with-pyroscope"><a class="header" href="#6-continuous-profiling-golang-application-with-pyroscope">6. Continuous profiling golang application with pyroscope:</a></h4>
+<p>https://grafana.com/docs/pyroscope/latest/?pg=oss-pyroscope</p>
+<h4 id="7-uber-h3-and-google-s2"><a class="header" href="#7-uber-h3-and-google-s2">7. Uber H3 and Google S2</a></h4>
+<p>Uber H3: https://h3geo.org/<br />
+Google S2: http://s2geometry.io/</p>
+<h4 id="8-bloom-filter"><a class="header" href="#8-bloom-filter">8. Bloom filter</a></h4>
+<p>https://en.wikipedia.org/wiki/Bloom_filter<br />
+https://github.com/bits-and-blooms/bloom</p>
+<h4 id="9-bitset-based-filtering"><a class="header" href="#9-bitset-based-filtering">9. Bitset-based filtering</a></h4>
+<p>To match request and with large number of campaigns in real-time<br />
+https://github.com/rtbkit/rtbkit/wiki/Filter</p>
+<h4 id="10-geoplot-tool-personal-project"><a class="header" href="#10-geoplot-tool-personal-project">10. Geoplot tool [personal project]</a></h4>
+<p>A simple tool to visualize CSV files containing latitude and longitude data on a world map.<br />
+Link: <a href="https://github.com/nttams/geoplot">https://github.com/nttams/geoplot</a></p>
+<h4 id="11-geodata-personal-project"><a class="header" href="#11-geodata-personal-project">11. Geodata [personal project]</a></h4>
+<p>A simple tool to generate UberH3 cellIDs, latitude, and longitude for all countries in the world.<br />
+Link: <a href="https://github.com/nttams/geodata">https://github.com/nttams/geodata</a></p>
+<h4 id="12-use-redis_exporter-to-monitor-redis"><a class="header" href="#12-use-redis_exporter-to-monitor-redis">12. Use redis_exporter to monitor redis</a></h4>
+<h4 id="13-use-redis-as-caching-layer-for-real-time-system-apply-hit-miss-and-batching-update-mechanism"><a class="header" href="#13-use-redis-as-caching-layer-for-real-time-system-apply-hit-miss-and-batching-update-mechanism">13. Use redis as caching layer for real-time system, apply hit-miss and batching update mechanism</a></h4>
+<h4 id="14-implementing-ednsrfc6891-support-for-c-dns-client"><a class="header" href="#14-implementing-ednsrfc6891-support-for-c-dns-client">14. Implementing EDNS(RFC6891) support for C++ DNS client</a></h4>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="real-time-weather-augmentation-for-http-requests"><a class="header" href="#real-time-weather-augmentation-for-http-requests">Real-time weather augmentation for HTTP requests</a></h1>
+<p>2025-08-28, Ho Chi Minh city</p>
+<h3 id="1-problem"><a class="header" href="#1-problem">1. Problem</a></h3>
+<p>An HTTP server receives traffic from all over the world. For some reason, we want to augment weather data to incoming request, but only requests originating from some certain places (e.g. USA).</p>
+<ul>
+<li>In request, there is geo data (latitude/longitude)</li>
+<li>Weather data is fetched from an weather API, and it usually takes seconds to respond</li>
+<li>Our HTTP server must process the request and respond in less than 100ms</li>
+</ul>
+<h3 id="2-how-to-know-if-the-request-is-coming-from-certain-places"><a class="header" href="#2-how-to-know-if-the-request-is-coming-from-certain-places">2. How to know if the request is coming from certain places?</a></h3>
+<p>When a request arrives, it contains geo data (latitude/longitude), to check if the request comes from USA, we can use data from <a href="https://www.naturalearthdata.com/">Natural Earth</a>, they provide country and region polygons, then we can apply ray casting algorithm to determine whether the latitude/longitude lies within polygon(s)</p>
+<p>This will work, but has some drawbacks:</p>
+<ul>
+<li>Ray casting requires extra work</li>
+<li>When number of polygons increases, computation time increases too</li>
+</ul>
+<h4 id="21-geo-indexing-and-move-heavy-computation-into-preprocessing"><a class="header" href="#21-geo-indexing-and-move-heavy-computation-into-preprocessing">2.1. Geo indexing and move heavy computation into preprocessing</a></h4>
+<ul>
+<li>We use geo indexing system (Uber H3), to divide the Earth surface into cells. Each cell has a unique ID.</li>
+<li>Preprocessing: convert polygons to cell sets: instead of storing polygons, we preprocess polygons into sets of cell IDs</li>
+<li>Fast runtime lookup:
+<ul>
+<li>When request comes, convert the its latitude/longitude to corresponding cell ID, this is O(1)</li>
+<li>Simply check if the cell ID is in any set of cells. This is O(1) too</li>
+</ul>
+</li>
+</ul>
+<h4 id="22-choosing-the-right-resolution-cell-size"><a class="header" href="#22-choosing-the-right-resolution-cell-size">2.2. Choosing the right resolution (cell size)</a></h4>
+<p>Uber H3 divides the Earth surface into hexagonal cells at multiple resolutions.
+High resolution -&gt; smaller cells -&gt; higher accuracy -&gt; require more storage and API calls</p>
+<p><a href="https://h3geo.org/docs/core-library/restable/">Uber h3 cell size</a></p>
+<h3 id="3-hit-miss-caching-mechanism"><a class="header" href="#3-hit-miss-caching-mechanism">3. Hit-miss caching mechanism</a></h3>
+<p>Weather API usually takes seconds to respond, that's not suitable for our real-time HTTP server, so we do:</p>
+<p>Step 1: HTTP Server</p>
+<ul>
+<li>Receives a request</li>
+<li>Extracts the latitude/longitude, converts into an cell ID</li>
+<li>Checks if this cell ID needs weather data</li>
+<li>Looks up weather data in Redis for that cell ID
+<ul>
+<li>If data is found: augment the request with weather data</li>
+<li>If data is not found: add the cell ID to Redis set: <code>cells_need_to_fetch</code></li>
+</ul>
+</li>
+</ul>
+<p>Step 2: Weather refresher, a separate service runs periodically (every 10s)</p>
+<ul>
+<li>Reads pending cell IDs from the Redis set <code>cells_need_to_fetch</code></li>
+<li>Converts cell IDs to latitudes/longitudes</li>
+<li>Fetches weather data for those latitudes/longitudes from the weather API</li>
+<li>Updates Redis with the new weather data for those cells</li>
+</ul>
+<h3 id="4-flow-charts"><a class="header" href="#4-flow-charts">4. Flow charts</a></h3>
+<h4 id="41-http-server"><a class="header" href="#41-http-server">4.1 HTTP Server</a></h4>
+<pre><code>             +-------------------+
+             |   HTTP request    |
+             |  (with lat/lng)   |
+             +---------+---------+
+                       |
+                       v
+             +-------------------+
+             | Convert to cellID |
+             +---------+---------+
+                       |
+                       v
+             +-------------------+
+             |   Redis lookup    |
+             +----+---------+----+
+               |              |
+             Found         Not Found
+               |              |
+               v              v
+ +-------------------+   +--------------------------+
+ | Augment request   |   | Add cellID to Redis set: |
+ | with weather data |   | cells_need_to_fetch      |
+ +-------------------+   +--------------------------+
+</code></pre>
+<h4 id="42-weather-refresher"><a class="header" href="#42-weather-refresher">4.2 Weather refresher</a></h4>
+<pre><code>             (runs every 10s)
+        +-----------------------+
+        |   Weather refresher   |
+        +-----------+-----------+
+                    |
+                    v
+        +-----------------------+
+        | Get cellIDs from Redis|
+        |  cells_need_to_fetch  |
+        +-----------+-----------+
+                    |
+                    v
+        +-----------------------+
+        |   CellID -&gt; lat/lng   |
+        +-----------+-----------+
+                    |
+                    v
+        +-----------+-----------+
+        |    Call weather API   |
+        +-----------+-----------+
+                    |
+                    v
+        +-----------------------+
+        |     Update Redis     |
+        |    with fresh data    |
+        +-----------------------+
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h2 id="large-map-of-pointers-eg-string-is-bad-for-golang-garbage-collector"><a class="header" href="#large-map-of-pointers-eg-string-is-bad-for-golang-garbage-collector">Large map (of pointers, e.g. string) is bad for Golang garbage collector</a></h2>
+<p>2025-03-21, Ho Chi Minh city</p>
+<p>I used to build new reverse proxy service in golang, to apply some custom routing logics for upstream</p>
+<ul>
+<li>Specs: 10 nodes, 4 cores/node, ~3KB per request.</li>
+<li>Use httputil.ReverseProxy</li>
+<li>Initially I used a large in-memory map[string]string (~6GB) for routing logic. However, while profiling, I discovered that it put significant pressure on the Go GC (known issue: <a href="https://github.com/golang/go/issues/9477">Large maps cause significant GC pauses</a>). So I migrated the map to Redis, this solved the GC pauses and saved RAM (1 instance in Redis vs 10 in-memory). Tradeoff is ~3ms latency increase for lookups. See images for flamecharts with and without the large map in memory</li>
+<li>Before:<br />
+<img src="../go_gc_before.jpeg" alt="Alt text for the image" /></li>
+<li>After:<br />
+<img src="../go_gc_after.jpeg" alt="Alt text for the image" /></li>
+</ul>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr.min.js"></script>
+        <script src="mark.min.js"></script>
+        <script src="searcher.js"></script>
+
+        <script src="clipboard.min.js"></script>
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS scripts -->
+
+        <script>
+        window.addEventListener('load', function() {
+            window.setTimeout(window.print, 100);
+        });
+        </script>
+
+
+    </div>
+    </body>
+</html>
