@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Things I&#x27;ve done or used - Tam&#x27;s space</title>
+        <title>Large maps are bad for go GC - Tam&#x27;s space</title>
 
 
         <!-- Custom HTML head -->
@@ -174,73 +174,125 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <h1 id="things-ive-done-or-used"><a class="header" href="#things-ive-done-or-used">Things I’ve done or used</a></h1>
-<p>2025-10-22, Ho Chi Minh city</p>
-<h4 id="0a-things-im-confident-in"><a class="header" href="#0a-things-im-confident-in">0a. Things I’m confident in</a></h4>
+                        <h1 id="large-maps-are-bad-for-go-gc"><a class="header" href="#large-maps-are-bad-for-go-gc">Large maps are bad for go GC</a></h1>
+<p>2025-03-21, Ho Chi Minh city</p>
+<hr>
+<h2 id="why-large-maps-hurt-go-gc"><a class="header" href="#why-large-maps-hurt-go-gc">Why Large Maps Hurt Go GC</a></h2>
+<p>Very large Go maps (<code>map[string]string</code> for example) that contain lots of pointers can cause significant overhead for Go’s garbage collector (GC). Go uses mark-and-sweep garbage collector, during each GC cycle, it:</p>
 <ul>
-<li>Golang (goroutine, channel, mutex, atomic, profiling, continuous profiling)</li>
-<li>C++</li>
+<li>Traverses all live objects</li>
+<li>Scans every single pointer</li>
+<li>Marks reachable memory</li>
 </ul>
-<h4 id="0b-things-im-familiar-with"><a class="header" href="#0b-things-im-familiar-with">0b. Things I’m familiar with</a></h4>
+<p>The cost of GC scales with the number of pointers, not total bytes. This is kinda a well-known issue with golang GC (<a href="https://github.com/golang/go/issues/9477">runtime: Large maps cause significant GC pauses</a>)</p>
+<p>A <code>map[string]string</code> contains:</p>
 <ul>
-<li>Rust, python, java, bash</li>
-<li>Redis, mongoDB, kafka, aerospike</li>
-<li>AWS S3/SQS,</li>
-<li>GCP GCS/BigTable/BigQuery/GCS</li>
-<li>K8s, docker, nginx, grafana, prometheus</li>
-<li>HTTP, DNS protocols</li>
-<li>Protobuf, websocket</li>
-</ul>
-<h4 id="0c-things-ive-tried-but-wouldnt-say-im-familiar-with"><a class="header" href="#0c-things-ive-tried-but-wouldnt-say-im-familiar-with">0c. Things I’ve tried but wouldn’t say I’m familiar with</a></h4>
+<li>A pointer to the internal hmap</li>
+<li>Pointers to bucket arrays</li>
+<li>For each entry:
 <ul>
-<li>Haskell
-<ul>
-<li><a href="https://github.com/nttams/tictactoe">Tictactoe game repo</a></li>
-<li><a href="https://www.youtube.com/watch?v=ayEs9_NbKI8">Tictactoe game video - English</a></li>
-<li><a href="https://www.youtube.com/watch?v=Lf5qoGfaMd0">Tictactoe game video - Vietnamese</a></li>
+<li>A pointer to the key</li>
+<li>A pointer to the value
+When the map grows, it results in lots of pointers for the GC to scan every cycle</li>
 </ul>
 </li>
 </ul>
-<h4 id="1-reverse-proxy-work-project"><a class="header" href="#1-reverse-proxy-work-project">1. Reverse proxy [work project]</a></h4>
-<p>Link: <a href="https://nttams.github.io/large-map-is-bad-for-go-gc.html">Reverse proxy</a></p>
-<h4 id="2-weather-targeting-work-project"><a class="header" href="#2-weather-targeting-work-project">2. Weather targeting [work project]</a></h4>
-<p>Link: <a href="https://nttams.github.io/weather-augmentation.html">Weather targeting</a></p>
-<h4 id="3-optimize-c-application-performance"><a class="header" href="#3-optimize-c-application-performance">3. Optimize C++ application performance</a></h4>
-<p>Identify and resolve bottleneck in C++ real-time engine, by moving expensive computations from single message passing thread to multiple worker threads.<br>Result: reduce from 36-core to 16-core for 50 nodes (from 1800 cores to 800 cores)</p>
-<p>TODO: will write more about this later</p>
-<h4 id="4-debug-c-segmentation-fault-coredump-with-gdb"><a class="header" href="#4-debug-c-segmentation-fault-coredump-with-gdb">4. Debug C++ segmentation fault coredump with GDB</a></h4>
-<h4 id="5-profiling-golang-application"><a class="header" href="#5-profiling-golang-application">5. Profiling golang application:</a></h4>
-<p>https://go.dev/doc/diagnostics</p>
-<h4 id="6-continuous-profiling-golang-application-with-pyroscope"><a class="header" href="#6-continuous-profiling-golang-application-with-pyroscope">6. Continuous profiling golang application with pyroscope:</a></h4>
-<p>https://grafana.com/docs/pyroscope/latest</p>
-<h4 id="7-uber-h3-and-google-s2"><a class="header" href="#7-uber-h3-and-google-s2">7. Uber H3 and Google S2</a></h4>
-<p>Uber H3: https://h3geo.org/<br>Google S2: http://s2geometry.io/</p>
-<h4 id="8-bloom-filter"><a class="header" href="#8-bloom-filter">8. Bloom filter</a></h4>
-<p>https://en.wikipedia.org/wiki/Bloom_filter<br>https://github.com/bits-and-blooms/bloom</p>
-<h4 id="9-bitset-based-filtering"><a class="header" href="#9-bitset-based-filtering">9. Bitset-based filtering</a></h4>
-<p>To match request and with large number of campaigns in real-time<br>https://github.com/rtbkit/rtbkit/wiki/Filter</p>
-<h4 id="10-geoplot-tool-personal-project"><a class="header" href="#10-geoplot-tool-personal-project">10. Geoplot tool [personal project]</a></h4>
-<p>A simple tool to visualize CSV files containing latitude and longitude data on a world map.<br>Link: <a href="https://github.com/nttams/geoplot">https://github.com/nttams/geoplot</a></p>
-<h4 id="11-geodata-personal-project"><a class="header" href="#11-geodata-personal-project">11. Geodata [personal project]</a></h4>
-<p>A simple tool to generate UberH3 cellIDs, latitude, and longitude for all countries in the world.<br>Link: <a href="https://github.com/nttams/geodata">https://github.com/nttams/geodata</a></p>
-<h4 id="12-use-redis-as-caching-layer-for-real-time-system-apply-hit-miss-and-batching-update-mechanism"><a class="header" href="#12-use-redis-as-caching-layer-for-real-time-system-apply-hit-miss-and-batching-update-mechanism">12. Use redis as caching layer for real-time system, apply hit-miss and batching update mechanism</a></h4>
-<h4 id="13-implementing-ednsrfc6891-support-for-c-dns-client"><a class="header" href="#13-implementing-ednsrfc6891-support-for-c-dns-client">13. Implementing EDNS(RFC6891) support for C++ DNS client</a></h4>
-<h4 id="14-switch-from-golang-std-encodingjson-to-segmentioencodingjson"><a class="header" href="#14-switch-from-golang-std-encodingjson-to-segmentioencodingjson">14. Switch from golang std encoding/json to segmentio/encoding/json</a></h4>
-<p>Interfaces are almost identical, performance is much better</p>
-<h4 id="15-continuous-profiling-rust-application-with-pyroscope"><a class="header" href="#15-continuous-profiling-rust-application-with-pyroscope">15. Continuous profiling rust application with pyroscope</a></h4>
-<h4 id="16-use-redis_exporterredisinsight-to-monitor-redis"><a class="header" href="#16-use-redis_exporterredisinsight-to-monitor-redis">16. Use redis_exporter/redisinsight to monitor redis</a></h4>
+<h2 id="my-case"><a class="header" href="#my-case">My case</a></h2>
+<h3 id="old-system-large-map-in-memory"><a class="header" href="#old-system-large-map-in-memory">Old system: large map in memory</a></h3>
+<p>I once built a HTTP reverse proxy service in golang, to apply some custom routing logics to route requests to the right upstream services:</p>
+<ul>
+<li>10 4-core nodes</li>
+<li>30_000 QPS, ~3KB per json request</li>
+<li>&lt;100ms latency</li>
+</ul>
+<p>It uses a large <code>map[string]string</code> to store parts of the routing rules. The CPU spikes periodically, but it happens too frequently and the prometheus chart gets flattened (with 5m interval), so I don’t notice it. Only when I profiled the service and see GC-related works take a large part of CPU time :(</p>
+<p>Workflow: <code>request -&gt; go process -&gt; lookup routing rule in map -&gt; forward to upstream</code></p>
+<pre><code class="language-go">package main
+
+import (
+	"fmt"
+	"runtime"
+	"time"
+)
+
+func run(n int) {
+	routes := make(map[string]string, n)
+
+	for i := range n {
+		routes[fmt.Sprintf("key-%d", i)] = fmt.Sprintf("value-%d", i)
+	}
+
+	const runs = 10
+	var totalPause time.Duration
+	for range runs {
+		start := time.Now()
+		runtime.GC()
+		pause := time.Since(start)
+		totalPause += pause
+	}
+
+	avgMs := float64(totalPause.Milliseconds()) / float64(runs)
+	fmt.Printf("n=%d | avg GC pause=%.3fms\n", n, avgMs)
+
+	_ = routes["key-0"] // prevent the map from being garbage collected
+}
+
+func main() {
+	run(1_000_000)
+	run(10_000_000)
+	run(20_000_000)
+}
+
+// Result
+// % go run ./...
+// n=1000000 | avg GC pause=10.200ms
+// n=10000000 | avg GC pause=103.300ms
+// n=20000000 | avg GC pause=342.600ms
+</code></pre>
+<p><img src="../go_gc_before.jpeg" alt="Alt text for the image"></p>
+<p>Observations:</p>
+<ul>
+<li><code>runtime.gcDrainMarkWorker</code> and <code>runtime.gcDrainMarkWorkerIdle</code> dominates CPU usage</li>
+<li>GC pause time increases with map size</li>
+</ul>
+<h3 id="new-system-large-map-in-redis"><a class="header" href="#new-system-large-map-in-redis">New system: large map in Redis</a></h3>
+<p>Workflow: <code>request -&gt; go process -&gt; lookup routing rule in redis -&gt; forward to upstream</code>
+<img src="../go_gc_after.jpeg" alt="Alt text for the image"></p>
+<p>Observations:</p>
+<ul>
+<li>GC pauses dropped significantly</li>
+<li>Overall RAM usage decreased (10 Go nodes vs 1 Redis node)</li>
+<li>Latency increased, but acceptable in the case</li>
+</ul>
+<h2 id="results-and-trade-offs"><a class="header" href="#results-and-trade-offs">Results and trade-offs</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Aspect</th><th>Go Map</th><th>Redis</th></tr>
+</thead>
+<tbody>
+<tr><td>GC pressure</td><td>High</td><td>Low</td></tr>
+<tr><td>Lookup latency</td><td>Fast</td><td>2–3 ms</td></tr>
+<tr><td>Memory per node</td><td>High</td><td>Low</td></tr>
+<tr><td>Horizontal scaling</td><td>Low</td><td>High</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="summary"><a class="header" href="#summary">Summary</a></h2>
+<ul>
+<li>Profile your program, the sooner the better</li>
+<li>Avoid large map with pointers in memory</li>
+<li>Use external stores for large/static/shared datasets</li>
+</ul>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="intro.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="weather-augmentation.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                             </a>
 
-                            <a rel="next prefetch" href="weather-augmentation.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
-                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
-                            </a>
 
                         <div style="clear: both"></div>
                     </nav>
@@ -248,13 +300,10 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="intro.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="weather-augmentation.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                     </a>
 
-                    <a rel="next prefetch" href="weather-augmentation.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
-                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
-                    </a>
             </nav>
 
         </div>
