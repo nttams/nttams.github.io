@@ -1,104 +1,194 @@
 # Real-time weather augmentation for HTTP requests
 2025-08-28, Ho Chi Minh city
 
-### 1. Problem
+## 1. Problem
+A HTTP server receives requests globally, for a subset of requests originating from some regions (e.g. US, EU), we must augment the request with weather data (historical, current, or even forecast data)
+- Incoming requests contain coordinates (latitude, longitude)
+- Weather data is retrieved from a third-party weather API, and it's slow (typically seconds)
+- The HTTP server must respond < **100ms**
+- Weather augmentation is required only for requests originating from certain regions, not all requests
 
-An HTTP server receives traffic from all over the world. For some reason, we want to augment weather data to incoming request, but only requests originating from some certain places (e.g. USA).
-- In request, there is geo data (latitude/longitude)
-- Weather data is fetched from an weather API, and it usually takes seconds to respond
-- Our HTTP server must process the request and respond in less than 100ms
+### 1.1 Determine if a request needs weather data
+Given a latitude and longitude:
+- Decide if the request originates from target regions (e.g. US, EU)
+- The decision must be fast and deterministic
 
-### 2. How to know if the request is coming from certain places?
+### 1.2 Augment the request with weather data in real time
+- Weather data comes from a slow external API
+- The HTTP request path must remain low latency
+- Data freshness should be acceptable (near real-time)
 
-When a request arrives, it contains geo data (latitude/longitude), to check if the request comes from USA, we can use data from [Natural Earth](https://www.naturalearthdata.com/), they provide country and region polygons, then we can apply ray casting algorithm to determine whether the latitude/longitude lies within polygon(s)
+## 2. Solutions
+### 2.1 Determine if a request needs weather data
+#### 2.1.1 Naive approach: polygon containment
 
-This will work, but has some drawbacks:
-- Ray casting requires extra work
-- When number of polygons increases, computation time increases too
+Store country or region boundaries as polygons. For each request, check whether the point (lat/lng) lies inside any polygon by using ray casting. This is simple and straightforward, but it has some major drawbacks: heavy computation at hot path, and latency is non-deterministic as it grows with number of polygons
 
-#### 2.1. Geo indexing and move heavy computation into preprocessing
-- We use geo indexing system (Uber H3), to divide the Earth surface into cells. Each cell has a unique ID. 
-- Preprocessing: convert polygons to cell sets: instead of storing polygons, we preprocess polygons into sets of cell IDs
-- Fast runtime lookup:
-	- When request comes, convert the its latitude/longitude to corresponding cell ID, this is O(1)
-	- Simply check if the cell ID is in any set of cells. This is O(1) too
+```
++-------------+
+| HTTP Request|
+| (lat, lng)  |
++------+------+ 
+       |
+       v
++--------------+
+| Ray Casting  |
++------+-------+
+       |
+       v
++--------------+
+|.  Yes / No   |
++--------------+
+```
 
-#### 2.2. Choosing the right resolution (cell size)
-Uber H3 divides the Earth surface into hexagonal cells at multiple resolutions.
-High resolution -> smaller cells -> higher accuracy -> require more storage and API calls
+#### 2.1.2 Optimized Approach: Geo Indexing with Uber H3
 
-[Uber h3 cell size](https://h3geo.org/docs/core-library/restable/)
+Use a geospatial indexing system (Uber H3), preprocess region polygons into sets of H3 cell IDs, and at runtime, convert lat/lng directly to a cell ID and perform constant-time lookups. This has the following benefits:
+- O(1) runtime check
+- Heavy computation moved to preprocessing
+- Predictable latency
 
-### 3. Hit-miss caching mechanism
+But it also introduces a drawback: it requires preprocessing to convert from polygon or other location configurations to H3 cell IDs
 
-Weather API usually takes seconds to respond, that's not suitable for our real-time HTTP server, so we do:
+**Preprocessing (Offline)**
 
-Step 1: HTTP Server
-- Receives a request
-- Extracts the latitude/longitude, converts into an cell ID
-- Checks if this cell ID needs weather data
-- Looks up weather data in Redis for that cell ID
-	- If data is found: augment the request with weather data
-	- If data is not found: add the cell ID to Redis set: `cells_need_to_fetch`
+```
++------------------+
+| Region Polygons  |
++---------+--------+
+          |
+          v
++------------------+
+| Polygon -> H3    |
+| Cell Conversion  |
++---------+--------+
+          |
+          v
++------------------+
+| Set of Cell IDs  |
++------------------+
+```
 
-Step 2: Weather refresher, a separate service runs periodically (every 10s)
-- Reads pending cell IDs from the Redis set `cells_need_to_fetch`
-- Converts cell IDs to latitudes/longitudes
-- Fetches weather data for those latitudes/longitudes from the weather API
-- Updates Redis with the new weather data for those cells
+**Runtime Flow**
 
-### 4. Flow charts
+```
++-------------+
+| HTTP Request|
+| (lat, lng)  |
++------+------+ 
+       |
+       v
++--------------+
+| lat/lng ->   |
+| H3 Cell ID   |
++------+-------+
+       |
+       v
++--------------+
+| Cell ID in   |
+| Target Set? |
++------+-------+
+       |
+       v
++--------------+
+| Yes / No     |
++--------------+
+```
 
-#### 4.1 HTTP Server
 
-                 +-------------------+
-                 |   HTTP request    |
-                 |  (with lat/lng)   |
-                 +---------+---------+
-                           |
-                           v
-                 +-------------------+
-                 | Convert to cellID |
-                 +---------+---------+
-                           |
-                           v
-                 +-------------------+
-                 |   Redis lookup    |
-                 +----+---------+----+
-                   |              |
-                 Found         Not Found
-                   |              |
-                   v              v
-     +-------------------+   +--------------------------+
-     | Augment request   |   | Add cellID to Redis set: |
-     | with weather data |   | cells_need_to_fetch      |
-     +-------------------+   +--------------------------+
+### 2.2 Augmenting Requests with Weather Data in Real Time
 
-#### 4.2 Weather refresher
+#### 2.2.1 Naive approach: direct API call in hot path
 
-                 (runs every 10s)
-            +-----------------------+
-            |   Weather refresher   |
-            +-----------+-----------+
-                        |
-                        v
-            +-----------------------+
-            | Get cellIDs from Redis|
-            |  cells_need_to_fetch  |
-            +-----------+-----------+
-                        |
-                        v
-            +-----------------------+
-            |   CellID -> lat/lng   |
-            +-----------+-----------+
-                        |
-                        v
-            +-----------+-----------+
-            |    Call weather API   |
-            +-----------+-----------+
-                        |
-                        v
-            +-----------------------+
-            |     Update Redis     |
-            |    with fresh data    |
-            +-----------------------+
+Fetch weather data directly during request handling, this surely violates the 100ms latency requirement as external API calls are slow, and it blocks everything
+
+**Flow**
+
+```
++-------------+
+| HTTP Request|
++------+------+ 
+       |
+       v
++--------------+
+| Call Weather |
+| API (slow)   |
++------+-------+
+       |
+       v
++--------------+
+| HTTP Response|
++--------------+
+```
+
+#### 2.2.2 Optimized approach: hit-miss cache with separated refresher
+
+Decouple request handling from weather fetching, use Redis as a fast cache, and fetch missing weather data asynchronously. This makes the HTTP path fast and deterministic, and external API latency is decoupled from the HTTP path
+
+**HTTP Server Flow**
+
+```
++------------------+
+| HTTP Request     |
+| (lat, lng)       |
++--------+---------+
+         |
+         v
++------------------+
+| lat/lng -> H3 ID |
++--------+---------+
+         |
+         v
++------------------+
+| Redis Lookup     |
++----+--------+----+
+     |        |
+   Hit      Miss
+     |        |
+     v        v
++--------+   +----------------------+
+| Augment|   | Add cell ID to Redis |
+| Request|   | set: cells_to_fetch  |
++--------+   +----------------------+
+```
+
+##### Weather Refresher Flow
+
+```
+(runs every 10s)
+
++----------------------+
+| Weather Refresher    |
++----------+-----------+
+           |
+           v
++----------------------+
+| Read cells_to_fetch  |
++----------+-----------+
+           |
+           v
++----------------------+
+| Cell -> lat/lng      |
++----------+-----------+
+           |
+           v
++----------------------+
+| Call Weather API     |
++----------+-----------+
+           |
+           v
++----------------------+
+| Update Redis Cache   |
++----------------------+
+```
+
+## Summary
+- Geo indexing (Uber H3) transforms complex spatial queries into constant-time lookups
+- Asynchronous cache refresh patterns allow real-time systems to depend on slow external APIs
+- Combined geo indexing and asynchronous cache refresh patterns makes sub-100ms request handling possible
+
+## Full source code
+
+```go
+Will try to rebuild a minimal working version when I have time
+```
