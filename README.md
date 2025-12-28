@@ -1,12 +1,6 @@
-# nttams.github.io
+# Personal site
 
-Use version >= 0.5.2 to have in-file table of contents
-
-```sh
-mdbook build
-rm -rf docs
-mv book docs
-```
+Source for my site with mdbook. Just push changes and github actions will build and deploy. To run locally:
 
 ```sh
 mdbook serve
