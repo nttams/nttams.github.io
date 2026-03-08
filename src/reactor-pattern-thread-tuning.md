@@ -1,15 +1,16 @@
 # Why More Threads Can Tank Your Performance
 2025-10-28
 
+**TL;DR:** By reducing the number of worker threads and unblocking our main event loop in a C++ Reactor-pattern system, we improved overall performance and downgraded our compute node from 36 cores to 16 cores. Across a deployment of 50 instances, this reduced our cluster from 1800 cores down to just 800 cores.
 
 ## 1. Introduction
 Building an ad-tech system is hard because you must reply very fast. In Real-Time Bidding (RTB), when a user opens an app or website, an ad exchange (like OpenX or Rubicon) sends a bid request to your system. You have a very short time, usually less than 100 milliseconds, to read the request, match it with active campaigns, decide to bid, and send it back.
 
 If you take too long, the exchange drops your response. You lose the auction and the business loses money. Every millisecond matters.
 
-I used to work on a system built with [RTBKit](https://github.com/rtbkit/rtbkit), a fast C++ bidding engine. RTBKit is very powerful, but it has some tricky parts. Once, to handle more traffic, I simply added more worker threads. I thought more threads would mean more speed. But the opposite happened: my system became much slower.
+I used to work on a system built with [RTBKit](https://github.com/rtbkit/rtbkit), a fast C++ bidding engine. RTBKit is very powerful, but it has some tricky parts. Once, to handle more traffic, I simply added more worker threads. I thought using more CPU cores would mean more speed. But the opposite happened: my system became much slower.
 
-This post explains why spinning up too many threads in a Reactor-based system is bad, and how it can choke your main event loop.
+This post explains why spinning up too many threads in a Reactor-based system is bad, and how fixing it allowed us to vastly improve efficiency.
 
 ## 2. RTBKit Architecture
 RTBKit uses a mix of thread pools and an event loop to process requests. The Event Loop sits in the center and routes messages between the different parts.
@@ -49,9 +50,9 @@ This is a good design, but there is one weak spot: **the single Event Loop threa
 ## 4. The Problem: Adding Too Many Threads
 Our traffic was growing. CPU usage was going up, and many bid requests started to timeout. 
 
-My server had many CPU cores, so I thought: "I should add more exchange worker threads."
+My server had 36 CPU cores per instance, so I thought: "I should add more exchange worker threads to utilize all these cores."
 
-I increased my worker threads. I hoped the system would handle more requests. But performance dropped a lot:
+I increased my worker threads to match the available cores. I hoped the system would handle more requests. But performance dropped a lot:
 - CPU usage got even higher.
 - Auction latency increased.
 - Bid timeouts increased.
@@ -71,9 +72,9 @@ Also, having too many threads trying to wake up the Event Loop caused a lot of c
 ## 6. How I Fixed It
 
 ### Fix 1: Reduce the Worker Threads
-First, I scaled down the thread pool based on available CPU cores. More threads are not always better. You must match the thread count to what your system can actually handle.
+First, I scaled down the thread pool based on what the Event Loop could actually handle, rather than just the raw available CPU cores. More threads are not always better. You must match the thread count to your system's architectural bottlenecks.
 
-I tested multiple configurations with different numbers of workers. By reducing the number of exchange workers, the Event Loop had less pressure. I selected the configuration that gave the best throughput and latency. Contention disappeared, and the system became faster.
+I tested multiple configurations with different numbers of workers. By significantly reducing the number of exchange workers, the Event Loop had less pressure. Contention disappeared, and the system became noticeably faster. We discovered the sweet spot was using only **16 cores instead of 36 cores** per instance. Across our deployment of 50 instances, this tuning reduced our total footprint from **1800 cores back down to 800 cores**—while maintaining better latency and higher throughput.
 
 ### Fix 2: Remove Work from the Event Loop
 The Event Loop had less pressure, but it was still running hot. In a Reactor pattern, the Event Loop must only route events.
