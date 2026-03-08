@@ -1,7 +1,6 @@
-# Why More Threads Can Tank Your Performance: A Story About Reactor Pattern
-2026-03-08
+# Why More Threads Can Tank Your Performance
+2025-10-28
 
-\* *AI was used to help refine and polish this article based on factual information* \*
 
 ## 1. Introduction
 Building an ad-tech system is hard because you must reply very fast. In Real-Time Bidding (RTB), when a user opens an app or website, an ad exchange (like OpenX or Rubicon) sends a bid request to your system. You have a very short time, usually less than 100 milliseconds, to read the request, match it with active campaigns, decide to bid, and send it back.
@@ -101,3 +100,5 @@ I moved this non-critical work out of the Event Loop into the worker threads. Af
 3. **Avoid bottlenecks in hybrid models:** Systems with both heavy worker threads and a single event loop look good, but the event loop can easily become the bottleneck. Watch it closely.
 
 For engineers building high-performance systems: always remember the bottleneck might not be the code doing the hard compute work, but the code organizing it. Scale carefully!
+
+\* *AI was used to help refine and polish this article based on factual information* \*

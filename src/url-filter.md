@@ -1,8 +1,6 @@
 # Scaling URL Blacklisting Under 100ms at 50k QPS Using Bloom Filters
 2026-03-08
 
-\* *AI was used to help refine and polish this article based on factual information* \*  
-\* *This was not deployed in production when I wrote this, and now I am not working there anymore* \*
 
 Modern web architecture and security layers often demand deep inspection of incoming traffic to prevent malicious behaviors, stop spam, and block known bad actors. At a glance, this seems like a standard task: an HTTP request comes in, you check the target URL or the origin IP against a database of known bad strings, and you block it if there is a match. However, when you operate at a massive scale, finding the right balance between memory usage, network capacity, and response latency is surprisingly hard.
 
@@ -290,3 +288,6 @@ To summarize the key engineering takeaways from our journey:
 3. **Understand the trade-offs intimately.** Probabilistic structures like Bloom filters bring unique challenges, notably false positives and the inability to delete records easily. Always tune your mathematical parameters (like integer array size and the count of hash functions) based on your real-world traffic patterns and memory limits.
 
 By blending the incredible memory efficiency of a Bloom filter with the exactness of Redis for verification, we built a hybrid checking system that effortlessly handles 50,000 requests per second while reliably making security decisions in milliseconds.
+
+\* *AI was used to help refine and polish this article based on factual information* \*  
+\* *This was not deployed in production when I wrote this, and now I am not working there anymore* \*

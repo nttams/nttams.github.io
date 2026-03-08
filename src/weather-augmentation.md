@@ -1,4 +1,4 @@
-# Real-time Weather Augmentation for HTTP Requests: Keeping Latency Under 100ms
+# Real-time Weather Augmentation
 2025-08-28
 
 Modern web systems often need to add external data to requests. A request comes in, we call an external API, merge data, and send it back. But at large scale, strict latency makes this simple flow hard.

@@ -1,7 +1,5 @@
 # Spinning up new goroutine to write a message to Kafka is a bad idea
-2026-03-08
-
-\* *AI was used to help refine and polish this article based on factual information* \*
+2026-01-02
 
 ## 1. Problem
 A high-throughput HTTP server receives requests and needs to publish an event to Kafka for each request asynchronously.
@@ -88,3 +86,5 @@ Benefits:
 - Spawning unbounded goroutines (`go func()`) per request is dangerous and masks concurrency issues until the system crashes under load
 - A bounded Goroutine Worker Pool ensures predictable memory and CPU utilization
 - Using buffered channels introduces natural backpressure, protecting both your service and external dependencies
+
+\* *AI was used to help refine and polish this article based on factual information* \*

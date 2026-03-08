@@ -2,7 +2,6 @@
 
 2025-03-21
 
-\* *AI was used to help refine and polish this article based on factual information* \*
 
 If you build high-throughput systems in Go, you will eventually run into a garbage collection (GC) wall. One of the most common, yet surprising, ways to hit this wall is by storing a massive number of items in a built-in Go map. 
 
@@ -189,3 +188,5 @@ To fix this:
 - **Use external stores.** For large, static, or shared datasets, systems like Redis or Memcached are purpose-built for the job. Do not reinvent the wheel inside your Go application unless you absolutely have to.
 
 Understanding how your tools work under the hood is what separates a working system from a highly-scalable, resilient system. Keep your pointers scarce, and your Go programs will fly.
+
+\* *AI was used to help refine and polish this article based on factual information* \*
