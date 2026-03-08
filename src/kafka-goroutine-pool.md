@@ -1,5 +1,7 @@
 # Spinning up new goroutine to write a message to Kafka is a bad idea
-2026-03-08, Ho Chi Minh city
+2026-03-08
+
+\* *AI was used to help refine and polish this article based on factual information* \*
 
 ## 1. Problem
 A high-throughput HTTP server receives requests and needs to publish an event to Kafka for each request asynchronously.

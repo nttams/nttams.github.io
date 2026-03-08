@@ -7,3 +7,4 @@
 - [Large maps are bad for go GC](./large-maps-are-bad-for-go-gc.md)
 - [We should dicard unread body in golang](./we-should-dicard-unread-body-in-golang.md)
 - [Reactor Pattern Bottlenecks](./reactor-pattern-thread-tuning.md)
+- [Kafka goroutine pool](./kafka-goroutine-pool.md)
