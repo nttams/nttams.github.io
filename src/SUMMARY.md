@@ -9,3 +9,4 @@
 - [Reactor Pattern Bottlenecks](./reactor-pattern-thread-tuning.md)
 - [Kafka goroutine pool](./kafka-goroutine-pool.md)
 - [Scaling URL Blacklisting With Bloom Filter](./url-filter.md)
+- [Building a Distributed Task Scheduling System](./distributed-task-scheduling.md)
