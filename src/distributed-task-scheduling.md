@@ -1,62 +1,60 @@
-# Building a Dead-Simple Distributed Task Scheduling System
+# Building a Simple Distributed Task Scheduling System
 2026-03-08
 
-\* *AI was used to help refine and polish this article based on factual information* \*
+When building background processing, people often use heavy tools like Kafka, RabbitMQ, or Kubernetes jobs. These tools are powerful but bring too much operation cost for simple cases.
 
-When building background processing pipelines, we often reach for heavy industry standards like Kafka, RabbitMQ, or complex Kubernetes job orchestrators. While these tools are incredibly powerful, they sometimes bring too much operational overhead for simpler use cases. 
+In this post, I will share how I built a simple, horizontally scalable distributed task scheduling system using just Go and MongoDB.
 
-In this post, I will share how we built a wildly simple, horizontally scalable distributed task scheduling system using just Go and MongoDB.
+My system requirements:
+1. **Unpredictable Workloads:** I have tasks to execute. A task can take from 2 seconds to 10 minutes. 
+2. **Horizontal Scaling:** I scale the system just by adding more worker nodes. 
+3. **Simplicity:** Adding new nodes or tasks must be very simple. No complex routing.
+4. **Reliability:** Every task must finish. No dropped tasks.
 
-The requirements for our system were straightforward but strict:
-1. **Unpredictable Workloads:** We have a list of standalone tasks that need to be executed. The catch? A task can take anywhere from 2 seconds to 10 minutes to finish. 
-2. **Horizontal Scaling:** We need to scale the system horizontally strictly by adding more processing nodes. 
-3. **Simplicity:** The process to add new nodes or submit new tasks must be super simple. No complex routing or partition keys.
-4. **Reliability:** Every single task must be finished. No dropped tasks.
-
-To hit these goals without over-engineering, we designed a system with exactly three components. Let's break down how we approached this.
+To achieve these goals without over-engineering, I used three components. Let's look at the design.
 
 ---
 
 ## The Architecture
 
-Our distributed scheduling system relies on three distinct components:
+My system has three components:
 
-1. **The Task Handler:** This is the control plane. It fetches new tasks from an external source, seeds them into our system, and ultimately submits the final results back to the external world.
-2. **The Worker:** This is the muscle. The worker actually does the heavy lifting. If we need more processing power, we just spin up more worker nodes.
-3. **MongoDB:** The centralized brain. We use a single MongoDB database to track the state of every task. Because tasks are completely independent, a simple document store is perfect for keeping things coordinated.
+1. **Task Handler:** The control plane. It gets new tasks from external sources, puts them into my system, and sends final results back.
+2. **Worker:** The processing unit. It does the heavy work. To get more processing power, I add more worker nodes.
+3. **MongoDB:** The central state server. I use one MongoDB database to track all task states. Since tasks are independent, a simple document store is enough.
 
-### The Task Flow at a Glance
+### Task Flow
 
-When the Task Handler discovers new tasks, it writes them into MongoDB as documents with their status set to `"pending"`. 
+When the Task Handler gets new tasks, it saves them to MongoDB with status `"pending"`. 
 
-Meanwhile, all of our Worker nodes are constantly polling MongoDB looking for work. When a Worker finds a `"pending"` task, it claims the task by updating the status to `"working"`. Once the heavy lifting is complete, the Worker writes the result back to the document and updates the status to `"done"`. 
+All Worker nodes constantly poll MongoDB for work. When a Worker finds a `"pending"` task, it claims the task by changing status to `"working"`. After finishing the work, the Worker saves the result to the document and changes status to `"done"`. 
 
-Finally, the Task Handler periodically scans the database for `"done"` tasks. When it finds them, it takes the results, submits them back to the external service, and marks the task as archived.
+The Task Handler periodically scans for `"done"` tasks. It takes the results, sends them to the external service, and marks tasks as archived.
 
-This setup isolates the ingestion of tasks from the execution of tasks.
+This design separates task ingestion from task execution.
 
 ---
 
-## Challenge 1: Preventing Duplicated Work 
+## Challenge 1: Prevent Duplicated Work 
 
-When you have twenty worker nodes polling the exact same database for pending tasks, you run into an immediate race condition. If two workers query for a pending task at the same millisecond, they might both grab the same task. This leads to duplicated work, which ruins the efficiency of a distributed system.
+When many worker nodes poll the same database, race conditions happen. If two workers query a pending task at the same time, they might grab the same task. This causes duplicated work and wastes resources.
 
-To prevent this, workers must claim tasks *atomically*. In MongoDB, we achieve this using the `findOneAndUpdate` operation.
+To prevent this, workers must claim tasks atomically. In MongoDB, I use the `findOneAndUpdate` operation.
 
-### Atomic Claiming
+### Atomic Claim
 
-Instead of doing a `find()` followed by an `update()`, we combine them into a single, atomic database query. The worker searches for a document where `status == "pending"`, and in the exact same operation, sets it to `"working"`. MongoDB guarantees that only one worker will successfully modify and receive the document.
+I do not use `find()` then `update()`. I combine them into one atomic database query. The worker searches for a document where `status == "pending"` and sets it to `"working"` in the same step. MongoDB ensures only one worker can modify and receive the document.
 
-Here is a quick pseudocode snippet showing how the worker claims a task:
+Here is a pseudocode showing how a worker claims a task:
 
 ```go
 func ClaimNextTask(ctx context.Context, db *mongo.Database) (*Task, error) {
     collection := db.Collection("tasks")
     
-    // Filter for any pending task
+    // Filter for pending task
     filter := bson.M{"status": "pending"}
     
-    // Atomically set the status to "working" and record which node claimed it
+    // Atomically set status to "working" and record worker ID
     update := bson.M{
         "$set": bson.M{
             "status": "working",
@@ -65,14 +63,14 @@ func ClaimNextTask(ctx context.Context, db *mongo.Database) (*Task, error) {
         },
     }
     
-    // Return the updated document
+    // Return updated document
     opts := options.FindOneAndUpdate().SetReturnDocument(options.After)
     
     var task Task
     err := collection.FindOneAndUpdate(ctx, filter, update, opts).Decode(&task)
     if err != nil {
         if err == mongo.ErrNoDocuments {
-            return nil, nil // No tasks available right now
+            return nil, nil // No task available
         }
         return nil, err
     }
@@ -81,24 +79,24 @@ func ClaimNextTask(ctx context.Context, db *mongo.Database) (*Task, error) {
 }
 ```
 
-Once a worker atomically claims a task, it owns it. It can take 2 seconds or 10 minutes to process. No other worker will ever touch it because the status is no longer `"pending"`.
+After a worker claims a task, it owns the task. It can take 2 seconds or 10 minutes. No other worker will touch it because the status is not `"pending"`.
 
-#### Performance Tuning Insights: Polling Backoff
-Since workers constantly poll the database, you want to avoid thrashing MongoDB when the queue is empty. Implementing an exponential backoff in your worker loop prevents unnecessary database load. If a worker finds no `"pending"` tasks, it should sleep for 1 second, then 2 seconds, then 4 seconds (up to a cap) before polling again. As soon as it finds a task, the sleep timer resets to zero.
+#### Performance Tuning: Polling Backoff
+Since workers constantly poll the database, you should avoid high load when the queue is empty. Use an exponential backoff in the worker loop. If a worker finds no `"pending"` tasks, it sleeps for 1 second, then 2 seconds, then 4 seconds. When it finds a task, the sleep time resets to zero.
 
-Additionally, ensure you have a compound index in MongoDB on `{ status: 1, created_at: 1 }` so the database can aggressively optimize the polling queries.
+Also, create a compound index `{ status: 1, created_at: 1 }` in MongoDB to make polling fast.
 
 ---
 
-## Challenge 2: Managing Concurrency on Workers
+## Challenge 2: Manage Concurrency
 
-One of our core requirements is that tasks can be highly variable in duration (up to 10 minutes). They might also be CPU-intensive or memory-heavy. 
+My tasks have different execution times (up to 10 minutes) and can use high CPU or memory. 
 
-Because of this variability, we enforced a strict rule for horizontal scaling: **Each worker node only runs one task at a time.** 
+Because of this, I set a strict rule: **Each worker node runs only one task at a time.** 
 
-Instead of building a complex thread pool inside the worker application to run multiple tasks, we rely on infrastructure to scale. The worker binary is designed to be single-threaded at the task level. It polls a task, executes it, finishes it, and then polls the next one. 
+Instead of building a complex thread pool in the worker application, I rely on infrastructure to scale. The worker runs linearly. It polls a task, runs it, finishes it, and polls the next one. 
 
-This makes the worker logic incredibly simple:
+This keeps the worker logic very simple:
 
 ```go
 func RunWorkerLoop() {
@@ -109,9 +107,7 @@ func RunWorkerLoop() {
             continue
         }
         
-        // Execute the heavy task synchronously
-        // Note: The task itself might spawn goroutines for internal parallelization,
-        // but the worker orchestrator waits for it to finish.
+        // Run heavy task
         result := executeHeavyWorkload(task.Payload)
         
         // Mark task as done
@@ -120,38 +116,36 @@ func RunWorkerLoop() {
 }
 
 func SubmitTaskResult(taskID string, result interface{}) {
-    // Update MongoDB status to 'done' and save the result
+    // Update MongoDB status to 'done' and save result
 }
 ```
 
-If we notice that our task queue is growing too large, we do not tune concurrency settings in a config file. We simply spin up 10, 20, or 100 more Docker containers running the worker image. Because the database handles the atomic locking, adding nodes instantly increases throughput with exactly zero configuration.
-
-*(Note: While a worker only processes one task pipeline at a time, the task execution logic itself is allowed to use parallel processing (like goroutines) internally to speed up its specific workload. The worker simply acts as a synchronous wrapper around the job.)*
+If the task queue is long, I just start more worker containers. The database handles atomic locking, so adding nodes increases throughput easily with zero configuration.
 
 ---
 
-## Challenge 3: Closing the Loop Safely
+## Challenge 3: Return Results Safely
 
-The final piece of the puzzle is getting the finished data back to the external world. 
+The last step is sending data back to the external world. 
 
-We deliberately do not let the workers talk to the external service. If a worker fails to send the final result due to an external network blip, we would have heavily processed data sitting in limbo, and the worker would be tied up attempting retries.
+I do not let workers talk to the external service. If a worker fails to send the result due to network issues, the worker will be blocked by retries and waste time.
 
-Instead, the workers only talk to MongoDB. They flip the task status to `"done"` and immediately move on to the next pending task.
+Workers only talk to MongoDB. They change task status to `"done"` and move to the next task.
 
-The **Task Handler** (our control plane) takes on the responsibility of delivery. It runs a periodic background scanner that queries MongoDB for `"done"` tasks. 
+The **Task Handler** manages delivery. It runs a background scanner that queries MongoDB for `"done"` tasks. 
 
 ```go
 func ScannerLoop() {
     for {
-        // Find all finished tasks
+        // Find finished tasks
         doneTasks := findTasksByStatus("done")
         
         for _, task := range doneTasks {
-            // Send back to external API
+            // Send to external API
             success := externalService.SubmitResult(task.Result)
             
             if success {
-                // Permanently archive or delete the task
+                // Archive task
                 markTaskArchived(task.ID)
             }
         }
@@ -161,22 +155,24 @@ func ScannerLoop() {
 }
 ```
 
-Because the Task Handler is separate, it can implement aggressive retry logic, exponential backoffs, and circuit breakers against the external service, all without blocking the worker nodes from churning through the heavy processing queue.
+By separating Task Handler, it can handle retries and network errors with the external service without blocking worker nodes.
 
-#### Performance Tuning Insights: Zombie Tasks
-What happens if a worker claims a task, marks it as `"working"`, and then the worker node crashes or loses power? That task will sit in the `"working"` state forever.
+#### Performance Tuning: Zombie Tasks
+If a worker claims a task, marks it as `"working"`, and then crashes, the task stays in the `"working"` state forever.
 
-To guarantee all tasks are finished, the Task Handler needs a "zombifier" routine. When a worker claims a task, it records a `started_at` timestamp. The Task Handler periodically scans for tasks where `status == "working"` but the `started_at` is older than our maximum known execution time (e.g., 15 minutes). If it finds one, it assumes the worker died, and flips the status back to `"pending"` so another healthy worker can pick it up.
+To ensure all tasks finish, the Task Handler needs a timeout check. When a worker claims a task, it sets `started_at`. The Task Handler periodically scans for `"working"` tasks older than maximum execution time (e.g., 15 minutes). If it finds one, it assumes the worker failed and changes status to `"pending"` so another worker can run it.
 
 ---
 
-## Conclusion
+## Summary
 
-Distributed systems do not always require a massive event-driven messaging platform like Kafka. By deeply understanding our constraints, we built a highly resilient task scheduler using basic database functionality.
+Distributed systems do not always need complex tools like Kafka. By understanding my limits, I built a stable task scheduler using basic database features.
 
-To summarize the engineering takeaways:
-1. **Rely on Atomic Database Operations:** You can safely build distributed locking and queueing using MongoDB's `findOneAndUpdate`. It perfectly prevents race conditions between competing nodes.
-2. **Scale by Infrastructure, Not Complexity:** By limiting workers to one task at a time, we removed complex internal concurrency management. If we need more throughput, we just add more nodes. The process is completely frictionless.
-3. **Isolate I/O from Processing:** Workers do heavy local computing and talk cleanly to the database. The Task Handler deals with external APIs and retries. This separation of concerns keeps the critical hot path of processing unblocked.
+Key takeaways:
+1. **Use Atomic Database Operations:** You can build safe queues using MongoDB `findOneAndUpdate`. It prevents race conditions.
+2. **Scale by Infrastructure:** Limiting workers to one task makes code simple. To get more power, add more nodes.
+3. **Isolate Processing from I/O:** Workers do heavy computing and talk to database. Task Handler manages external APIs and retries. This keeps workers fast and unblocked.
 
-By combining atomic database updates with a dead-simple worker loop, we achieved infinite horizontal scaling with practically zero operational overhead.
+Using atomic database updates and a simple worker loop gives us horizontal scaling with very low operation cost.
+
+\* *AI was used to help refine and polish this article based on factual information* \*
