@@ -1,33 +1,31 @@
 # Real-time Weather Augmentation for HTTP Requests: Keeping Latency Under 100ms
 2025-08-28
 
-\* *AI was used to help refine and polish this article based on factual information* \*
+Modern web systems often need to add external data to requests. A request comes in, we call an external API, merge data, and send it back. But at large scale, strict latency makes this simple flow hard.
 
-Modern web architecture often demands integrating internal systems with external data providers. At a glance, this seems like a standard task: a request comes in, you make a call to an external API, merge the data, and send it back. However, when you operate at scale, strict latency budgets make this simple flow surprisingly hard.
+In this post, we share a real problem we faced. Our HTTP servers get global traffic. For requests from specific regions (US or EU), we need to add local weather data (temperature, rain) to the response.
 
-In this post, I will share a real-world problem we faced. Our HTTP servers receive traffic globally. For a specific subset of these incoming requests—specifically those originating from targeted regions like the US or the EU—we needed to augment the payload with local weather data (such as temperature, rain probability, and historical patterns). 
+The requirements are strict:
+1. **Input:** The request has geographic coordinates (latitude and longitude).
+2. **External Dependency:** Weather data comes from a third-party API. This API is slow and takes seconds to respond.
+3. **Latency Budget:** Our HTTP server must respond in under **100ms**.
+4. **Targeting:** We only add weather data to requests from targeted regions.
 
-The requirements were strict:
-1. **Input:** The incoming request contains geographic coordinates (latitude and longitude).
-2. **External Dependency:** The weather data lives behind a third-party weather API. This API is painfully slow, often taking several seconds to respond.
-3. **Latency Budget:** Our HTTP server must respond in under **100ms**
-4. **Targeting:** We do not want to enrich every single request—only the ones falling inside our targeted geographic regions.
+We have two main challenges on the hot path: checking if a request needs weather data based on coordinates, and getting the data without passing our latency budget.
 
-This presents two distinct engineering challenges on the hot path: determining if a request needs weather data based on its coordinates, and fetching that data without blowing up our latency budget. 
-
-Let's break down how we approached and solved both problems.
+Let's break down how we solved both problems.
 
 ---
 
 ## Challenge 1: Fast and Deterministic Geofencing
 
-The first step in the pipeline is a gating decision: *Does this given pair of latitude and longitude fall inside our target regions?* 
+First, we need to decide: *Does this latitude and longitude fall inside our target regions?*
 
-This decision must happen for every single incoming HTTP request. Therefore, it needs to be insanely fast, CPU-efficient, and most importantly, deterministic in its execution time.
+This decision happens for every HTTP request. So, it must be very fast, use little CPU, and have a steady execution time.
 
-### The Naive Approach: Polygon Containment via Ray Casting
+### The Naive Approach: Ray Casting
 
-The intuition here is simple. You store the geographic boundaries of the US and EU as complex polygons. When a request comes in, you execute a "point-in-polygon" algorithm. The most common method is ray casting, where you draw an imaginary line from the point in a single direction and count how many times it intersects the polygon edges.
+We can save the borders of the US and EU as complex polygons. When a request comes, we run a "point-in-polygon" algorithm like ray casting. We draw a line from the point and count how many times it crosses polygon edges.
 
 ```text
 +-------------+
@@ -46,20 +44,18 @@ The intuition here is simple. You store the geographic boundaries of the US and 
 +--------------+
 ```
 
-While easy to understand, this approach has fatal flaws when put on a high-throughput hot path:
-- **Heavy CPU load**: Geographic boundaries are not simple squares. The polygon for a country like the US can have thousands of edges. Running ray casting against complex shapes consumes significant CPU cycles.
-- **Non-deterministic latency**: The time it takes to compute the result depends heavily on the complexity of the polygon and where the point is located geometrically. A point inside a highly complex border might take 10x longer to compute than a point outside a simple border. This ruins our p99 latency guarantees.
+This approach has big problems for high traffic:
+- **Heavy CPU load**: Country borders are complex. The US polygon has thousands of edges. Ray casting uses too much CPU.
+- **Unpredictable latency**: Computation time depends on polygon shape and point location. A point inside a complex border takes much longer than a point outside. This breaks p99 latency limits.
 
-### The Optimized Approach: Geo-Indexing with Uber's H3
+### The Optimized Approach: Uber's H3
 
-To remove the heavy computation from the hot path, we needed a way to shift the workload to an offline process. This is where grid systems like [Uber's H3](https://h3geo.org/) shine.
+To remove heavy math from the hot path, we do the work offline. We use grid systems like [Uber's H3](https://h3geo.org/).
 
-H3 is a geospatial indexing system that divides the globe into a grid of hexagons. Every hexagon represents a specific geographic area and is identified by a unique 64-bit integer (represented as a short string).
+H3 divides the globe into hexagons. Each hexagon covers a geographic area and has a unique 64-bit ID. Instead of doing math at runtime, we precalculate the intersections.
 
-Instead of computing intersections at runtime, we can precompute them. 
-
-**Offline Preprocessing Phase:**
-We take our complex region polygons (the US and EU) and map them onto the H3 grid at a chosen resolution. We figure out exactly which H3 hexagons are inside our polygons. The result is simply a large set of `Target Cell IDs`. We load this set into memory (like a standard Hash Set or Go `map[string]struct{}`).
+**Offline Preprocessing:**
+We map our region polygons (US and EU) on the H3 grid at a chosen resolution. We find which H3 hexagons are inside our polygons. The result is a set of `Target Cell IDs`. We load this set into memory (like a Go `map[string]bool`).
 
 ```text
 +------------------+
@@ -79,7 +75,7 @@ We take our complex region polygons (the US and EU) and map them onto the H3 gri
 ```
 
 **Hot Path Implementation:**
-When the HTTP request arrives, we take the latitude and longitude, use the lightweight H3 library to find out which hexagon it belongs to, and simply check if that hexagon ID exists in our in-memory set.
+When a request arrives, we convert its latitude and longitude to an H3 hexagon ID using the H3 library. Then, we look up if this ID exists in our in-memory set.
 
 ```text
 +-------------+
@@ -105,7 +101,7 @@ When the HTTP request arrives, we take the latitude and longitude, use the light
 +--------------+
 ```
 
-Here is a quick pseudocode snippet showing how this looks in practice:
+Pseudocode example:
 
 ```go
 // Pre-loaded in memory at startup
@@ -121,22 +117,22 @@ func ShouldAugmentWeather(lat, lng float64) bool {
 }
 ```
 
-#### Performance Tuning Insights: H3 Resolution
-Choosing the correct H3 resolution is a classic space-time trade-off. 
-- Higher resolutions (smaller hexagons) provide very accurate boundaries, preventing false positives near country borders. But this requires huge memory because the set of Cell IDs will be massive. 
-- Lower resolutions (larger hexagons) consume very little memory but make the borders jagged and inaccurate.
+#### Performance Tuning: H3 Resolution
+Choosing H3 resolution is a space-time trade-off.
+- Higher resolution (small hexagons): Better accuracy near country borders. But it uses huge memory because the Cell ID set is large.
+- Lower resolution (large hexagons): Uses very little memory but makes borders inaccurate.
 
-In our case, a resolution of `7` (where each hexagon represents about 5 square kilometers) provided a perfect balance. The memory footprint easily fit into our service's RAM limit, and the accuracy was completely acceptable for a weather application.
+For us, resolution `7` (one hexagon is ~5 sq km) is a good balance. Memory usage is low, and accuracy is good enough for weather.
 
 ---
 
 ## Challenge 2: Augmenting Requests Without Blocking
 
-Now that we know the request falls in the targeted region, we need to fetch the weather for that location. How do we do this when our latency budget is 100ms, and the API takes seconds to answer?
+Now we know the request is in the targeted region. We must get the weather data. How do we do this within 100ms when the API takes seconds?
 
 ### The Naive Approach: Direct API Calls
 
-The most straightforward way is to just call the API over HTTP inside the request handler.
+The simple way is to call the API in the request handler.
 
 ```text
 +-------------+
@@ -155,20 +151,20 @@ The most straightforward way is to just call the API over HTTP inside the reques
 +--------------+
 ```
 
-Obviously, this violates the 100ms rule immediately. Furthermore, synchronous calls to slow external dependencies consume threads or file descriptors. If there is a traffic spike, the incoming requests will queue up waiting for the slow weather API, quickly causing thread pool exhaustion or out-of-memory crashes.
+This breaks the 100ms rule immediately. Also, synchronous calls to slow APIs use up threads or file descriptors. During a traffic spike, requests wait for the slow weather API. This quickly causes thread starvation or out-of-memory crashes.
 
-### The Optimized Approach: The Hit-Miss Cache with Sidecar Refresher
+### The Optimized Approach: Hit-Miss Cache with Refresher
 
-The fundamental realization here is that **weather does not change every millisecond**. If two users open the app from the exact same H3 hexagon within a 15-minute window, the weather data will be functionally identical. 
+Weather does not change every millisecond. If two users are in the same H3 hexagon within 15 minutes, the weather data is the same.
 
-We can completely decouple the hot path from the slow external API. To do this, we use Redis as an intermediate cache layer, and introduce an asynchronous worker process whose only job is to interact with the external API.
+We decouple the hot path from the slow API. We use Redis as a cache, and a background worker to call the external API.
 
 #### The Hot Path Flow
 
-In the main HTTP server process, when a request is flagged for augmentation, we extract its H3 Cell ID and ask Redis for the cached weather data associated with that cell.
+In the main HTTP server, when a request needs weather, we get its H3 Cell ID and check Redis for cached data.
 
-- **Cache Hit:** We get the data from Redis instantly (usually ~1-2ms), inject it into the request, and serve the user.
-- **Cache Miss:** We do **not** call the weather API. Instead, we insert the missing cell ID into a Redis Set (representing a queue of locations that need data). The HTTP request immediately continues without weather data (which degrades gracefully on the client side), skipping the slow API.
+- **Cache Hit:** We get data from Redis instantly (~1-2ms), add it to the request, and serve the user.
+- **Cache Miss:** We do **not** call the weather API. Instead, we add the missing cell ID to a Redis Set (our fetch queue). The HTTP request continues without weather data (graceful degradation) to skip the slow API delay.
 
 ```text
 +------------------+
@@ -195,7 +191,7 @@ In the main HTTP server process, when a request is flagged for augmentation, we 
 +--------+   +----------------------+
 ```
 
-Here is a pseudocode example of the hot path logic:
+Pseudocode for hot path:
 
 ```go
 func HandleRequest(w http.ResponseWriter, r *http.Request) {
@@ -218,6 +214,7 @@ func HandleRequest(w http.ResponseWriter, r *http.Request) {
             augmentData = defaultFallbackWeather() 
         } else {
             // Cache HIT case:
+            // We have the data, use it
             augmentData = weatherData
         }
         
@@ -231,9 +228,9 @@ func HandleRequest(w http.ResponseWriter, r *http.Request) {
 
 #### The Background Refresher Flow
 
-Running parallel to our HTTP server is a background worker or chron job. We call this the Weather Refresher. 
+We run a background worker parallel to our HTTP server. We call it the Weather Refresher.
 
-Every few seconds, the refresher looks at the `cells_to_fetch` Set in Redis. It pops the cell IDs, converts them back to a generic central point (lat/lng), and then makes the slow API calls. Once the data is retrieved, it writes the result back into the Redis cache with a generous Time-to-Live (TTL), usually around 30 to 60 minutes.
+Every few seconds, the refresher reads the `cells_to_fetch` Set in Redis. It pops the cell IDs, converts them to latitude/longitude points, and calls the slow API. When it gets the data, it saves it in Redis with a Time-to-Live (TTL) of 30 to 60 minutes.
 
 ```text
 (runs every 10s)
@@ -265,7 +262,7 @@ Every few seconds, the refresher looks at the `cells_to_fetch` Set in Redis. It 
 +----------------------+
 ```
 
-Here is how the Refresher works conceptually:
+Conceptual code for Refresher:
 
 ```go
 func RunWeatherRefresher() {
@@ -289,26 +286,28 @@ func RunWeatherRefresher() {
 }
 ```
 
-#### Performance Tuning Insights: Handling the Cache Stampede
-Notice that in our missing cache path, we use Redis `SADD` to append to `cells_to_fetch` rather than a standard list queue push (`RPUSH`). 
+#### Performance Tuning: Cache Stampede
+In our cache miss path, we use Redis `SADD` instead of list push (`RPUSH`).
 
-Why? Because if a popular location's cache key expires, you might instantly receive 5,000 requests from that location. If you append to a standard list queue, your queue will suddenly contain 5,000 identical items. Your background refresher will pull the same data from the slow API 5,000 times, wasting API quota limits and increasing costs. 
+Why? If a popular location's cache expires, you might get 5,000 requests from there instantly. With a normal list, your queue gets 5,000 duplicate items. The background worker will call the slow API 5,000 times for the same data. This is bad for costs and API limits.
 
-By using a Set (`SADD`), the items are deduplicated implicitly. The refresher will only ever see one task to fetch that specific cell.
+By using a Set (`SADD`), items are automatically deduplicated. The worker only fetches data for a cell once.
 
-Another important insight is limiting the fetcher concurrency. You do not want the background worker to spawn thousands of identical goroutines to bombard the weather API, as it could get your IP address quickly banned. Using a predefined worker pool allows you to strictly control the exact rate of outbound HTTP requests.
+Also, limit the worker concurrency. You do not want the background worker to make thousands of requests at once and get your IP banned. Use a worker pool to control the request rate.
 
 ---
 
 ## Conclusion
 
-Building real-time systems often requires ruthless isolation. By aggressively separating the fast components from the slow components, we were able to deliver a highly scalable augmentation service.
+Building real-time systems needs strict separation. By separating fast parts from slow parts, we built a highly scalable service.
 
-To summarize the key engineering takeaways:
-1. **Move heavy computation offline.** Geo-indexing systems like Uber H3 allow you to transform complex spatial queries into constant-time hash map lookups.
-2. **Never put uncontrollable latency in the hot path.** Third-party APIs are often the weakest link in latency SLAs. 
-3. **Decouple via asynchronous workers.** The asynchronous cache refresh pattern allows a real-time system to heavily utilize slow external APIs by accepting temporary cache misses (graceful degradation) in exchange for rock-solid p99 response times.
+Key engineering takeaways:
+1. **Move heavy math offline.** Systems like Uber H3 change complex spatial math into constant-time hash map lookups.
+2. **Remove uncontrollable latency from the hot path.** Third-party APIs are often the weakest link for latency.
+3. **Decouple with background workers.** Asynchronous cache refresh allows real-time systems to use slow APIs. We accept temporary cache misses to keep fast p99 response times.
 
-By mixing offline geographical precomputation with an asynchronous hit-miss caching architecture, we easily handle massive throughput bursts while consistently responding in under 100 milliseconds.
+By combining offline precomputation and asynchronous hit-miss caching, we easily handle high traffic and always respond in under 100 milliseconds.
 
-*(Will try to rebuild a minimal working version when I have time)*
+*(I will try to rebuild a minimal working version when I have time)*
+
+\* *AI was used to help refine and polish this article based on factual information* \*
