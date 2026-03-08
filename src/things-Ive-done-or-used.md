@@ -73,6 +73,3 @@ Interfaces are almost identical, performance is much better
 Link: [Tictactoe game repo](https://github.com/nttams/tictactoe)  
 Video: [Tictactoe game video - English](https://www.youtube.com/watch?v=ayEs9_NbKI8)  
 Video: [Tictactoe game video - Vietnamese](https://www.youtube.com/watch?v=Lf5qoGfaMd0)  
-
-**Distributed Midnight scavenger miner**  
-TODO: will write more about this later
