@@ -166,4 +166,4 @@ When working with `net/http` in Go, never assume `defer resp.Body.Close()` is a 
 
 A few lines of code can literally save your infrastructure under load. Keep your pools warm and your bodies discarded!
 
-\* *AI was used to help refine and polish this article based on factual information* \*
+> AI was used to help refine and polish this article based on factual information

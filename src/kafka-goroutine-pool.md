@@ -87,4 +87,4 @@ Benefits:
 - A bounded Goroutine Worker Pool ensures predictable memory and CPU utilization
 - Using buffered channels introduces natural backpressure, protecting both your service and external dependencies
 
-\* *AI was used to help refine and polish this article based on factual information* \*
+> AI was used to help refine and polish this article based on factual information

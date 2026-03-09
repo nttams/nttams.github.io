@@ -1,4 +1,4 @@
-# Why More Threads Can Tank Your Performance
+# More Threads Can Harm Your Performance
 2025-10-28
 
 **TL;DR:** By reducing the number of worker threads and unblocking our main event loop in a C++ Reactor-pattern system, we improved overall performance and downgraded our compute node from 36 cores to 16 cores. Across a deployment of 50 instances, this reduced our cluster from 1800 cores down to just 800 cores.
@@ -102,4 +102,4 @@ I moved this non-critical work out of the Event Loop into the worker threads. Af
 
 For engineers building high-performance systems: always remember the bottleneck might not be the code doing the hard compute work, but the code organizing it. Scale carefully!
 
-\* *AI was used to help refine and polish this article based on factual information* \*
+> AI was used to help refine and polish this article based on factual information

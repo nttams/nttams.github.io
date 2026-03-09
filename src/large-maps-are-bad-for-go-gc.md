@@ -189,4 +189,4 @@ To fix this:
 
 Understanding how your tools work under the hood is what separates a working system from a highly-scalable, resilient system. Keep your pointers scarce, and your Go programs will fly.
 
-\* *AI was used to help refine and polish this article based on factual information* \*
+> AI was used to help refine and polish this article based on factual information

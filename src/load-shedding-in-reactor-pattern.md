@@ -67,4 +67,4 @@ Notice a very important detail here: the probability rises much faster than it f
 
 Why is this designed this way? An overloaded system will start to fall behind very quickly. It snowballs out of control in milliseconds. Therefore, it is important to react and cut traffic very aggressively. Once the system starts to recover, it slowly eases back into a normal state. If it recovers too fast, it will likely trigger another overload spike.
 
-\* *AI was used to help refine and polish this article based on factual information* \*
+> AI was used to help refine and polish this article based on factual information

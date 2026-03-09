@@ -175,4 +175,4 @@ Key takeaways:
 
 Using atomic database updates and a simple worker loop gives us horizontal scaling with very low operation cost.
 
-\* *AI was used to help refine and polish this article based on factual information* \*
+> AI was used to help refine and polish this article based on factual information

@@ -311,4 +311,4 @@ Also, we limit the worker concurrency. We do not want the background worker to m
 2. **Remove uncontrollable latency from the hot path.** Third-party APIs are a weak link for latency. We never call them in-request.
 3. **Decouple with background workers.** Asynchronous cache refresh lets real-time systems use slow APIs. We accept temporary cache misses to keep p99 latency stable.
 
-\* *AI was used to help refine and polish this article based on factual information* \*
+> AI was used to help refine and polish this article based on factual information
