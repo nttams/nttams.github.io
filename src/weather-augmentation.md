@@ -306,6 +306,109 @@ Also, we limit the worker concurrency. We do not want the background worker to m
 
 ---
 
+## Putting It All Together
+
+```text
+                   OFFLINE (build time)                            RUNTIME
+          ┌──────────────────────────────┐
+          │  Region Polygons (GeoJSON)   │
+          └──────────────┬───────────────┘
+                         │
+                         v
+          ┌──────────────────────────────┐
+          │  geodata: Polygon -> H3      │
+          │  Cell IDs (resolution 5)     │
+          └──────────────┬───────────────┘
+                         │
+                         v
+          ┌──────────────────────────────┐
+          │  CSV files per country       │        ┌───────────────────────────────┐
+          │  (e.g. h3_res_5_usa.csv)     │───────>│  Startup: load CSV into       │
+          └──────────────────────────────┘        │  map[uint64]bool (Target Set) │
+                                                  └──────────────┬────────────────┘
+                                                                 │
+            ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─
+                                                                 │
+                            HOT PATH (per request, < 3ms)        │
+                                                                 v
+                                                  ┌───────────────────────────────┐
+                                                  │  HTTP Request (lat, lng)      │
+                                                  └──────────────┬────────────────┘
+                                                                 │
+                                                                 v
+                                                  ┌───────────────────────────────┐
+                                                  │  lat/lng -> H3 Cell ID        │
+                                                  └──────────────┬────────────────┘
+                                                                 │
+                                                                 v
+                                                  ┌────────────────────-──────────┐
+                                                  │  Cell ID in Target Set?       │
+                                                  └──────┬────────────────────────┘
+                                                         │                  │
+                                                        YES                 NO
+                                                         │                  │
+                                                         v                  │
+                                                  ┌──────────────────┐      │
+                                                  │  Redis Lookup    │      │
+                                                  │  (cache key =    │      │
+                                                  │   H3 Cell ID)    │      │
+                                                  └──┬───────────┬───┘      │
+                                                     │           │          │
+                                                   HIT          MISS        │
+                                                     │           │          │
+                                                     v           v          │
+                                              ┌──────────┐ ┌────────────┐   │
+                                              │  Attach  │ │ SADD cell  │   │
+                                              │  weather │ │ to Redis   │   │
+                                              │  data    │ │ set:       │   │
+                                              │          │ │ cells_to_  │   │
+                                              │          │ │ fetch      │   │
+                                              └────┬─────┘ └─────┬──────┘   │
+                                                   │             │          │
+                                                   │      ┌──────┘          │
+                                                   │      │  Do nothing     │
+                                                   │      │                 │
+                                                   │      │                 │
+                                                   │      │                 │
+                                                   └──┬───┘                 │
+                                                      │                     │
+                                                      v                     │
+                                                  ┌──────────────────┐      │
+                                                  │  Forward to      │<────-┘
+                                                  │  Upstream        │
+                                                  └──────────────────┘
+
+            ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─
+
+                            BACKGROUND LOOP (every 10s)
+
+                        ┌─────────────────────────────────────┐
+                        │  Weather Refresher                  │
+                        └──────────────────┬──────────────────┘
+                                           │
+                                           v
+                        ┌─────────────────────────────────────┐
+                        │  SPOP cells_to_fetch (up to 50)     │
+                        └──────────────────┬──────────────────┘
+                                           │
+                                           v
+                        ┌─────────────────────────────────────┐
+                        │  Cell ID -> lat/lng                 │
+                        └──────────────────┬──────────────────┘
+                                           │
+                                           v
+                        ┌─────────────────────────────────────┐
+                        │  Call Weather API (slow, ~seconds)  │
+                        └──────────────────┬──────────────────┘
+                                           │
+                                           v
+                        ┌─────────────────────────────────────┐
+                        │  Update Redis Cache (key + TTL)     │
+                        └─────────────────────────────────────┘
+```
+
+---
+
 ## Key takeaways
 1. **Move heavy math offline.** H3 changes complex spatial math into a constant-time hash map lookup. Generating the cell set offline with a tool like [geodata](https://github.com/nttams/geodata) keeps the hot path clean.
 2. **Remove uncontrollable latency from the hot path.** Third-party APIs are a weak link for latency. We never call them in-request.
