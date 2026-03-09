@@ -1,4 +1,4 @@
-# Custom Routing in a Distributed RTB
+# Custom Routing
 2026-03-09
 
 > **Disclaimer:** All numbers and examples in this article describe abstract ideas. They are not exact facts about any real system.
@@ -67,6 +67,8 @@ The proxy does not run the full filtering logic — that is too CPU-heavy. Inste
 ```
 
 We built this in Go using the standard `net/http/httputil.ReverseProxy` package with custom routing logic. Redis stores per-node metadata — the campaigns each node holds and which targeting dimensions they cover.
+
+We store this metadata in Redis instead of loading it into Go's memory as a large map. The reason: keeping millions of entries in a `map[string]string` inside a Go process puts heavy pressure on the garbage collector. Go's GC must scan every pointer in the map on every cycle, which causes periodic CPU spikes and unpredictable tail latency. Moving the data to Redis removes it from Go's heap entirely. We covered this issue in detail in [Large Maps Are Bad for Go GC](./large-maps-are-bad-for-go-gc.md), which we discovered while building this proxy.
 
 ---
 
@@ -191,7 +193,7 @@ The proxy also adds one more component to the system. We run it with multiple in
 
 ## Key Takeaways
 
-1. **Random routing is not always right.** In systems where data is partitioned across nodes, routing requests randomly means lower utilization. custom routing improves match rate without adding hardware.
+1. **Random routing is not always right.** In systems where data is partitioned across nodes, routing requests randomly means lower utilization. Custom routing improves match rate without adding hardware.
 2. **Do lightweight filtering at the proxy layer.** Running full filtering at the proxy is too expensive. A few fast checks are enough to make better routing decisions.
 3. **Healthy does not mean ready.** A node that just restarted can appear healthy but have no data. Check application-level readiness, not just network-level liveness.
 4. **Fast nodes attract traffic.** An empty node responds fast. Without readiness checks, a proxy will send it all the traffic. Always check for readiness before routing.

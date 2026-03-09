@@ -46,7 +46,7 @@ That is over 20 million individual pointers! During every single GC cycle, the G
 
 ## My Case Study: The High-Traffic HTTP Reverse Proxy
 
-I recently worked on an HTTP reverse proxy service written in Go. Its job was to apply custom routing logic, mapping incoming requests to correct upstream services.
+I recently worked on an HTTP reverse proxy service written in Go. Its job was to apply custom routing logic, mapping incoming requests to correct upstream services. We describe the routing system in detail in [Custom Routing](./rtb-custom-routing.md). This GC issue is one of the things we ran into while building it.
 
 The scale was significant:
 - We ran 10 nodes, each with 4 CPU cores.
