@@ -12,6 +12,6 @@
     - [Scaling URL Blacklisting With Bloom Filter](./url-filter.md)
     - [Building a Distributed Task Scheduling System](./distributed-task-scheduling.md)
     - [Load Shedding in Reactor Pattern](./load-shedding-in-reactor-pattern.md)
-    - [Smart Routing in a Distributed RTB](./rtb-smart-routing.md)
+    - [Custom Routing](./rtb-custom-routing.md)
 - [Notes](./notes.md)
     - [Merkle Tree](./merkle-tree.md)

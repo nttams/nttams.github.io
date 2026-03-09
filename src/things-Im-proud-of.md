@@ -3,5 +3,5 @@
 
 - [Optimize: from 1800 to 800 cores](./more-threads-can-harm-your-performance.md)
 - [Real-time weather augmentation](./weather-augmentation.md)
-- [Smart Routing in a Distributed RTB DSP](./rtb-dsp-smart-routing.md)
+- [Custom Routing in a Distributed RTB](./rtb-custom-routing.md)
 - [Large maps are bad for Go GC](./large-maps-are-bad-for-go-gc.md)

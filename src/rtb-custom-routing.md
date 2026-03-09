@@ -1,4 +1,4 @@
-# Smart Routing in a Distributed RTB
+# Custom Routing in a Distributed RTB
 2026-03-09
 
 > **Disclaimer:** All numbers and examples in this article describe abstract ideas. They are not exact facts about any real system.
@@ -43,7 +43,7 @@ This is a fundamental issue with random (round-robin) routing. Every node is equ
 
 ---
 
-## The Solution: A Smart Reverse Proxy
+## The Solution: A Custom Reverse Proxy
 
 We built a reverse proxy that sits in front of the compute nodes. Instead of routing requests randomly, it routes each bid request to the node most likely to have a matching campaign.
 
@@ -181,7 +181,7 @@ The proxy checks this count. If it is zero (or below a minimum threshold), the n
 
 ## Results and Trade-offs
 
-After deploying the smart routing proxy, our match rate increased by around **30%**. This came entirely from routing bid requests to nodes that have relevant campaigns, instead of routing randomly.
+After deploying the custom routing proxy, our match rate increased by around **30%**. This came entirely from routing bid requests to nodes that have relevant campaigns, instead of routing randomly.
 
 The trade-off is added latency. The proxy needs to query Redis and run routing logic before forwarding. This adds around **5ms** to each request. For our system, that is acceptable — bid requests have a strict deadline (usually 100ms total), and 5ms leaves enough room for the compute node to do full filtering and ML scoring.
 
@@ -191,7 +191,7 @@ The proxy also adds one more component to the system. We run it with multiple in
 
 ## Key Takeaways
 
-1. **Random routing is not always right.** In systems where data is partitioned across nodes, routing requests randomly means lower utilization. Smart routing improves match rate without adding hardware.
+1. **Random routing is not always right.** In systems where data is partitioned across nodes, routing requests randomly means lower utilization. custom routing improves match rate without adding hardware.
 2. **Do lightweight filtering at the proxy layer.** Running full filtering at the proxy is too expensive. A few fast checks are enough to make better routing decisions.
 3. **Healthy does not mean ready.** A node that just restarted can appear healthy but have no data. Check application-level readiness, not just network-level liveness.
 4. **Fast nodes attract traffic.** An empty node responds fast. Without readiness checks, a proxy will send it all the traffic. Always check for readiness before routing.
