@@ -1,5 +1,4 @@
 # Spinning up new goroutine to write a message to Kafka is a bad idea
-2026-01-02
 
 ## 1. Problem
 A high-throughput HTTP server receives requests and needs to publish an event to Kafka for each request asynchronously.

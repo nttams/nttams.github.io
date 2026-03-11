@@ -1,5 +1,4 @@
 # How Load Shedding Works in Real-Time Systems with Reactor Pattern
-2026-03-09
 
 Real-time systems receive a huge amount of requests every second. Sometimes, sudden traffic spikes happen. If a system tries to process all incoming requests during a spike, the servers will overload. CPU usage hits 100%, and memory fills up. When this happens, the response time (latency) increases.  In high-throughput environments, latency is critical. There is usually a strict millisecond deadline to respond to a request. If the response is late, the client times out or drops the response. This means CPU, memory, and network resources were wasted for nothing. 
 

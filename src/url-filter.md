@@ -1,5 +1,4 @@
 # Scaling URL Blacklisting With Bloom Filter
-2026-03-08
 
 > **Disclaimer:** All numbers and examples in this article describe abstract ideas. They are not exact facts about any real system.
 

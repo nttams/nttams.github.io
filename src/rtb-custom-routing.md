@@ -1,5 +1,4 @@
 # Custom Routing
-2026-03-09
 
 > **Disclaimer:** All numbers and examples in this article describe abstract ideas. They are not exact facts about any real system.
 

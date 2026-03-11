@@ -1,5 +1,4 @@
 # We must discard unread body in Golang
-2025-12-27
 
 If you write Go microservices, you make HTTP calls. And if you make HTTP calls, you might be leaking performance without even knowing it. 
 

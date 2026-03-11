@@ -1,5 +1,4 @@
 # Merkle Trees
-2026-03-09
 
 When you're dealing with massive distributed systems, think blockchains, P2P networks, or even Git, you face a constant challenge: **How do I verify a huge amount of data without actually downloading all of it?**
 

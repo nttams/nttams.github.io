@@ -1,8 +1,5 @@
 # Large Maps Are Bad for Go GC
 
-2025-03-21
-
-
 If you build high-throughput systems in Go, you will eventually run into a garbage collection (GC) wall. One of the most common, yet surprising, ways to hit this wall is by storing a massive number of items in a built-in Go map. 
 
 I recently dealt with a performance issue in a high-traffic HTTP reverse proxy. The culprit was a large `map[string]string` kept in memory. After changing our approach, CPU utilization dropped significantly and our latency became much more predictable. 

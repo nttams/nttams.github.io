@@ -1,5 +1,4 @@
 # More Threads Can Harm Your Performance
-2025-10-28
 
 **TL;DR:** By reducing the number of worker threads and unblocking our main event loop in a C++ Reactor-pattern system, we improved overall performance and downgraded our compute node from 36 cores to 16 cores. Across a deployment of 50 instances, this reduced our cluster from 1800 cores down to just 800 cores.
 

@@ -1,5 +1,4 @@
 # Real-time Weather Augmentation
-2025-08-28
 
 Our HTTP server gets global traffic and must respond in under **100ms**. For requests from specific regions (like US or EU), we need to add local weather data (temperature, rain, etc.) before passing them to upstream processing. There is a lot of work upstream, so weather augmentation must finish in under **3ms**.
 

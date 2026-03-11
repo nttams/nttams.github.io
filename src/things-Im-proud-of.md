@@ -1,5 +1,4 @@
 # Things I'm proud of
-2025-10-22, Ho Chi Minh city
 
 - [Optimize: from 1800 to 800 cores](./more-threads-can-harm-your-performance.md)
 - [Real-time weather augmentation](./weather-augmentation.md)

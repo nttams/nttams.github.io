@@ -1,5 +1,4 @@
 # Things I've done or used
-2025-10-22, Ho Chi Minh city
 
 **Things I'm confident in**  
 - Techniques:

@@ -1,5 +1,4 @@
 # Building a Simple Distributed Task Scheduling System
-2026-03-08
 
 When building background processing, people often use heavy tools like Kafka, RabbitMQ, or Kubernetes jobs. These tools are powerful but bring too much operation cost for simple cases.
 

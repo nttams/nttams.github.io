@@ -1,4 +1,4 @@
-# Matrix-Based Campaign Filtering in Real-Time Bidding
+# Matrix-Based Filtering
 
 ## The Matching Problem
 In a Real-Time Bidding (RTB) Demand-Side Platform (DSP), each system instance typically processes thousand (say 1000) bid requests per second. For every incoming request, the system must determine which of the thousand (say 1000 too) active campaigns should bid on it. 
@@ -75,3 +75,5 @@ Finally, bitsets maximize memory efficiency. A bitset tracking 1000 campaigns oc
 
 ## Reference:
 - https://github.com/rtbkit/rtbkit/wiki/Filter
+
+> AI was used to help refine and polish this article based on factual information
