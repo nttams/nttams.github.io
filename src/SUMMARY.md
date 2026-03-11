@@ -13,6 +13,7 @@
     - [Building a Distributed Task Scheduling System](./distributed-task-scheduling.md)
     - [Load Shedding in Reactor Pattern](./load-shedding-in-reactor-pattern.md)
     - [Custom Routing](./rtb-custom-routing.md)
+    - [Matrix-based filter](./matrix-based-filtering.md)
 - [Notes](./notes.md)
     - [Merkle Tree](./merkle-tree.md)
     - [Staged Event-Driven Architecture](./staged-event-driven-architecture.md)
