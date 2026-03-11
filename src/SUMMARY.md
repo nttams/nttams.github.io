@@ -15,3 +15,4 @@
     - [Custom Routing](./rtb-custom-routing.md)
 - [Notes](./notes.md)
     - [Merkle Tree](./merkle-tree.md)
+    - [Staged Event-Driven Architecture](./staged-event-driven-architecture.md)
