@@ -2,9 +2,9 @@
 
 If you build high-throughput systems in Go, you will eventually run into a garbage collection (GC) wall. One of the most common, yet surprising, ways to hit this wall is by storing a massive number of items in a built-in Go map. 
 
-I recently dealt with a performance issue in a high-traffic HTTP reverse proxy. The culprit was a large `map[string]string` kept in memory. After changing our approach, CPU utilization dropped significantly and our latency became much more predictable. 
+I once dealt with a performance issue in a high-traffic HTTP reverse proxy. The culprit was a large `map[string]string` kept in memory. After changing our approach, CPU utilization dropped significantly and our latency became much more predictable. 
 
-In this post, I want to share why large maps are bad for the Go garbage collector, how we discovered the issue in our production system, and the practical steps you can take to fix it. We will also explore some performance tuning insights for Go maps.
+In this post, I want to share why large maps are bad for the Go garbage collector, how I discovered the issue in our production system, and the practical steps I took to fix it. I will also explore some performance tuning insights for Go maps.
 
 ## How Go Garbage Collection Works
 
@@ -41,9 +41,9 @@ So, if you have a `map[string]string` with 10 million entries, you do not just h
 
 That is over 20 million individual pointers! During every single GC cycle, the Go standard garbage collector must scan all of them. Even if you never modify the map, the GC does not know that. It has to scan the whole thing every time to make sure memory is still reachable. This completely shreds your CPU cache and slows down the whole runtime.
 
-## My Case Study: The High-Traffic HTTP Reverse Proxy
+## The case: The high-traffic HTTP reverse proxy
 
-I recently worked on an HTTP reverse proxy service written in Go. Its job was to apply custom routing logic, mapping incoming requests to correct upstream services. We describe the routing system in detail in [Custom Routing](./rtb-custom-routing.md). This GC issue is one of the things we ran into while building it.
+I once worked on an HTTP reverse proxy service written in Go. Its job was to apply custom routing logic, mapping incoming requests to correct upstream services. I describe the routing system in detail in [Custom Routing](./custom-routing.md). This GC issue is one of the things I ran into while building it
 
 The scale was significant:
 - We ran 10 nodes, each with 4 CPU cores.
@@ -125,13 +125,13 @@ As you can see, the GC pause time grows linearly with the number of items in the
 
 ## Finding a Solution
 
-Once we knew the huge `map[string]string` was the problem, we had to find a way to fix it. We explored a few different approaches.
+Once I knew the huge `map[string]string` was the problem, I had to find a way to fix it. I explored a few different approaches.
 
 ### Approach 1: Map without Pointers
-Go has an optimization: if a map's keys and values do not contain any pointers, the GC will not scan its contents. For example, a `map[int]int` does not require scanning. However, since we needed strings, it was not straightforward. We could map a hash of the string (an integer) to an offset in a massive byte array, but this meant writing a custom memory allocator. It is complex and fragile.
+Go has an optimization: if a map's keys and values do not contain any pointers, the GC will not scan its contents. For example, a `map[int]int` does not require scanning. However, since I needed strings, it was not straightforward. I could map a hash of the string (an integer) to an offset in a massive byte array, but this meant writing a custom memory allocator. It is complex and fragile.
 
 ### Approach 2: Off-Heap Caching Libraries
-We considered using libraries like `BigCache` or `FreeCache`. These libraries avoid GC overhead by allocating large byte arrays (which have no pointers) and managing the memory layout themselves. They serialize your strings into bytes and store them in the array, hashing the keys to integer offsets. 
+I considered using libraries like `BigCache` or `FreeCache`. These libraries avoid GC overhead by allocating large byte arrays (which have no pointers) and managing the memory layout themselves. They serialize your strings into bytes and store them in the array, hashing the keys to integer offsets. 
 This is a great technique if you strictly need your cache to stay inside the Go process memory for extreme performance. But it still consumes a large amount of RAM on every single node. If we have 10 nodes, we are duplicating this massive dataset 10 times in memory.
 
 ### Approach 3: External Store (Redis)

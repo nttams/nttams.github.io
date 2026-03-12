@@ -1,16 +1,16 @@
 # Matrix-Based Filtering
 
 ## The Matching Problem
-In a Real-Time Bidding (RTB) Demand-Side Platform (DSP), each system instance typically processes thousand (say 1000) bid requests per second. For every incoming request, the system must determine which of the thousand (say 1000 too) active campaigns should bid on it. 
+In a Real-Time Bidding (RTB) Demand-Side Platform (DSP), each system instance typically processes a massive volume of bid requests per second. For every incoming request, the system must determine which of the large number of active campaigns should bid on it. 
 
 Every bid request contains multiple attributes, such as country location ("us", "jp", "sg"), device language ("en", "fr", "vn"), operating system, and the specific website. Concurrently, each campaign enforces strict targeting rules. One campaign might exclusively target iOS users from the "us" who speak "en". Another campaign might accept any global location except "eu".
 
-The system faces a strict time constraint, usually under 100 milliseconds, to find all matching campaigns. The naive approach uses a procedural loop to iterate sequentially through all 1000 campaigns and evaluate every rule inside each campaign.  When this naive loop is used, performance degrades. Checking thousands of rules per request results in millions of evaluations per second. Loop branches, nested conditional statements, and memory jumps consume excess time. CPU branch prediction suffers, and auction latency increases.
+The system faces a strict time constraint, usually a tiny fraction of a second, to find all matching campaigns. The naive approach uses a procedural loop to iterate sequentially through all campaigns and evaluate every rule inside each campaign.  When this naive loop is used, performance degrades. Checking a huge number of rules per request results in an immense number of evaluations per second. Loop branches, nested conditional statements, and memory jumps consume excess time. CPU branch prediction suffers, and auction latency increases.
 
 To resolve this, the system implements a matrix-based filtering approach. Instead of checking a request against each campaign, the index is inverted. Request attributes map directly to the campaigns that target them.
 
 ## The Matrix-Based System
-The matching logic relies on an inverted index constructed from bitsets. A bitset is a contiguous array of bits. Each campaign is assigned a fixed ID from 0 to 999. In every bitset, the bit at index `i` always represents the campaign with ID `i`. 
+The matching logic relies on an inverted index constructed from bitsets. A bitset is a contiguous array of bits. Each campaign is assigned a fixed ID sequentially. In every bitset, the bit at index `i` always represents the campaign with ID `i`. 
 
 Configurations are not stored inside individual campaign objects. Instead, the system uses independent filter objects for each attribute category, such as a Language Filter or a Location Filter. 
 
@@ -36,7 +36,7 @@ Second, it retrieves `exclude_map["en"]`.
 The filter then drops the excluded campaigns using a bitwise AND NOT operation. The final valid campaigns for this attribute are determined by a single formula:
 `(include_map["en"] OR empty_include_bitset) AND NOT exclude_map["en"]`
 
-This mathematical expression instantly satisfies the truth table for all 1000 campaigns simultaneously. 
+This mathematical expression instantly satisfies the truth table for all campaigns simultaneously. 
 
 ## Combining the Rules
 Upon receiving a bid request, the matching engine initializes a primary bitset named `active_campaigns`, with all bits set to `1` (all campaigns start as valid candidates).
@@ -67,11 +67,11 @@ Final Match -> Campaign Result
 ## Performance Benefits
 This matrix-based design yields significant architectural advantages.
 
-First, it eliminates the per-request loop over 1000 campaigns. Routing time scales with the number of attributes inside the bid request, not the total number of campaigns. Matching latency stays flat and predictable as campaign volume grows.
+First, it eliminates the per-request loop over all campaigns. Routing time scales with the number of attributes inside the bid request, not the total number of campaigns. Matching latency stays flat and predictable as campaign volume grows.
 
 Second, dictionary lookups execute extremely fast. Computing the bitwise formula broadcasts the exact state of all campaigns simultaneously in O(1) time.
 
-Finally, bitsets maximize memory efficiency. A bitset tracking 1000 campaigns occupies less than 130 bytes. These compact structures fit cleanly inside fast L1 and L2 CPU caches.
+Finally, bitsets maximize memory efficiency. A bitset tracking many campaigns occupies a minuscule amount of memory. These compact structures fit cleanly inside fast L1 and L2 CPU caches.
 
 ## Reference:
 - https://github.com/rtbkit/rtbkit/wiki/Filter

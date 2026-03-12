@@ -30,7 +30,6 @@ Five years in software engineering, mostly in the AdTech industry, where everyth
 https://github.com/rtbkit/rtbkit/wiki/Filter
 
 **Bloom filter**  
-[Scaling URL blacklisting with bloom filter](./url-filter.md)  
 https://en.wikipedia.org/wiki/Bloom_filter  
 https://github.com/bits-and-blooms/bloom
 

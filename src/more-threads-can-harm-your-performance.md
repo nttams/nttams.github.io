@@ -7,7 +7,7 @@ Building an ad-tech system is hard because you must reply very fast. In Real-Tim
 
 If you take too long, the exchange drops your response. You lose the auction and the business loses money. Every millisecond matters.
 
-I used to work on a system built with [RTBKit](https://github.com/rtbkit/rtbkit), a fast C++ bidding engine. RTBKit is very powerful, but it has some tricky parts. Once, to handle more traffic, I simply added more worker threads. I thought using more CPU cores would mean more speed. But the opposite happened: my system became much slower.
+We used to work on a system built with [RTBKit](https://github.com/rtbkit/rtbkit), a fast C++ bidding engine. RTBKit is very powerful, but it has some tricky parts. Once, to handle more traffic, we simply added more worker threads. We thought using more CPU cores would mean more speed. But the opposite happened: our system became much slower.
 
 This post explains why spinning up too many threads in a Reactor-based system is bad, and how fixing it allowed us to vastly improve efficiency.
 
@@ -49,9 +49,9 @@ This is a good design, but there is one weak spot: **the single Event Loop threa
 ## 4. The Problem: Adding Too Many Threads
 Our traffic was growing. CPU usage was going up, and many bid requests started to timeout. 
 
-My server had 36 CPU cores per instance, so I thought: "I should add more exchange worker threads to utilize all these cores."
+Our server had 36 CPU cores per instance, so we thought: "We should add more exchange worker threads to utilize all these cores."
 
-I increased my worker threads to match the available cores. I hoped the system would handle more requests. But performance dropped a lot:
+We increased our worker threads to match the available cores. We hoped the system would handle more requests. But performance dropped a lot:
 - CPU usage got even higher.
 - Auction latency increased.
 - Bid timeouts increased.
@@ -60,25 +60,25 @@ I increased my worker threads to match the available cores. I hoped the system w
 How could adding more workers make the system slower?
 
 ## 5. Debugging the Issue
-I checked the operating system and looked at what the CPU was doing.
+We checked the operating system and looked at what the CPU was doing.
 
 The problem became clear: **the Event Loop thread was fully overloaded and stuck at maximum CPU.**
 
-Because I added too many worker threads, they were all parsing requests, matching campaigns, and sending messages to the Event Loop at the same time. The single Event Loop could not read and route messages fast enough. It was overwhelmed, creating backpressure.
+Because we added too many worker threads, they were all parsing requests, matching campaigns, and sending messages to the Event Loop at the same time. The single Event Loop could not read and route messages fast enough. It was overwhelmed, creating backpressure.
 
 Also, having too many threads trying to wake up the Event Loop caused a lot of contention. The CPU spent more time managing threads instead of doing real work.
 
-## 6. How I Fixed It
+## 6. How We Fixed It
 
 ### Fix 1: Reduce the Worker Threads
-First, I scaled down the thread pool based on what the Event Loop could actually handle, rather than just the raw available CPU cores. More threads are not always better. You must match the thread count to your system's architectural bottlenecks.
+First, we scaled down the thread pool based on what the Event Loop could actually handle, rather than just the raw available CPU cores. More threads are not always better. We must match the thread count to our system's architectural bottlenecks.
 
-I tested multiple configurations with different numbers of workers. By significantly reducing the number of exchange workers, the Event Loop had less pressure. Contention disappeared, and the system became noticeably faster. We discovered the sweet spot was using only **16 cores instead of 36 cores** per instance. Across our deployment of 50 instances, this tuning reduced our total footprint from **1800 cores back down to 800 cores**—while maintaining better latency and higher throughput.
+We tested multiple configurations with different numbers of workers. By significantly reducing the number of exchange workers, the Event Loop had less pressure. Contention disappeared, and the system became noticeably faster. We discovered the sweet spot was using only **16 cores instead of 36 cores** per instance. Across our deployment of 50 instances, this tuning reduced our total footprint from **1800 cores back down to 800 cores**—while maintaining better latency and higher throughput.
 
 ### Fix 2: Remove Work from the Event Loop
 The Event Loop had less pressure, but it was still running hot. In a Reactor pattern, the Event Loop must only route events.
 
-I read the code and found that there were "slightly slow" tasks, such as logging and data formatting, inside the Event Loop logic. 
+We read the code and found that there were "slightly slow" tasks, such as logging and data formatting, inside the Event Loop logic. 
 
 ```cpp
 // BAD: Formatting strings inside the Event Loop
@@ -89,9 +89,9 @@ void EventLoop::dispatch(Message msg) {
 }
 ```
 
-These things only take a little time. But if you do them many times a second in a single thread, the CPU gets overloaded.
+These things only take a little time. But if we do them many times a second in a single thread, the CPU gets overloaded.
 
-I moved this non-critical work out of the Event Loop into the worker threads. After this change, the Event Loop was much faster. The system throughput improved a lot and the timeouts went away.
+We moved this non-critical work out of the Event Loop into the worker threads. After this change, the Event Loop was much faster. The system throughput improved a lot and the timeouts went away.
 
 ## 7. Key Lessons
 
