@@ -2,19 +2,15 @@
 
 **TL;DR:** By reducing the number of worker threads and unblocking our main event loop in a C++ Reactor-pattern system, we improved overall performance and downgraded our compute node from 36 cores to 16 cores. Across a deployment of 50 instances, this reduced our cluster from 1800 cores down to just 800 cores.
 
-## 1. Introduction
-Building an ad-tech system is hard because you must reply very fast. In Real-Time Bidding (RTB), when a user opens an app or website, an ad exchange (like OpenX or Rubicon) sends a bid request to your system. You have a very short time, usually less than 100 milliseconds, to read the request, match it with active campaigns, decide to bid, and send it back.
+## Introduction
+In RTB (real time bidding) DSP (demand side platform) system, things move fast, usually the server must respond in 100ms. If it takes too long, it loses the auction.
 
-If you take too long, the exchange drops your response. You lose the auction and the business loses money. Every millisecond matters.
+I used to work on a RTB DSP system built with [RTBKit](https://github.com/rtbkit/rtbkit), a fast C++ bidding engine. RTBKit is very powerful, but it has some tricky parts. Once, to handle more traffic, I simply added more worker threads. I thought using more CPU cores would mean more speed. But the opposite happened: our system became much slower.
 
-We used to work on a system built with [RTBKit](https://github.com/rtbkit/rtbkit), a fast C++ bidding engine. RTBKit is very powerful, but it has some tricky parts. Once, to handle more traffic, we simply added more worker threads. We thought using more CPU cores would mean more speed. But the opposite happened: our system became much slower.
+This post explains why spinning up too many threads in a Reactor-pattern system can be bad, and how fixing it allowed us to improve performance significantly.
 
-This post explains why spinning up too many threads in a Reactor-based system is bad, and how fixing it allowed us to vastly improve efficiency.
-
-## 2. RTBKit Architecture
-RTBKit uses a mix of thread pools and an event loop to process requests. The Event Loop sits in the center and routes messages between the different parts.
-
-Here is a simple view of the system:
+## RTBKit Architecture
+RTBKit uses a mix of thread pools and an event loop to process requests. The Event Loop sits in the center and routes messages between the different components. Here is a simple view of the system:
 ```text
                           +------------------+
                           |                  |
@@ -33,55 +29,34 @@ Here is a simple view of the system:
                           +------------------+
 ```
 
-1. **Exchange workers:** These threads receive the HTTP bid request, parse the JSON, and match the bid request against a large number of campaigns. This is very heavy CPU work.
-2. **Event Loop:** The worker finishes and sends a message to a queue. The Event Loop picks it up and sends it to the Augmenter threads.
-3. **Augmenters:** Add extra data to the request. After they finish, they send a message back to the Event Loop.
-4. **Bidders:** The Event Loop routes the request to Bidder threads. They look at the matched campaigns and decide if they want to bid or not.
-5. **Send Response:** The response routes back through the Event Loop to the Exchange worker threads, which send it back to the ad exchange.
+- **Exchange workers:** These are the main workers, they receive the HTTP bid request, parse the JSON, and match the bid request against a large number of campaigns. This is very CPU-intensive work.
+- **Event Loop:** The exchange worker thread finishes and sends a message to a queue. The event loop picks it up and routes it to the augmenter threads.
+- **Augmenters:** Add extra data to the request. IO-bound work.
+- **Bidders:** Decide if they want to bid or not. IO-bound work.
+- **Send Response:** The response routes back through the event loop to the exchange worker threads, which send it back to the ad exchange.
 
-## 3. The Reactor Pattern and the Event Loop
-In this system, components don't call each other directly. They talk using queues. To tell another component that a message is ready, they use a single Event Loop.
+## The Reactor Pattern and the Event Loop
+In this system, components don't call each other directly. They talk using queues. To tell another component that a message is ready, they use a single event loop. This is the Reactor Pattern. When a worker pushes a message to the queue, it wakes up the single event loop thread. The event loop reads the message and routes it to the right place.
 
-This is the Reactor Pattern. When a worker pushes a message to the queue, it wakes up the single Event Loop thread. The Event Loop reads the message and routes it to the right place.
+This is a good design, but there is one weak spot: **the single event loop thread**. All messages must go through this one thread.
 
-This is a good design, but there is one weak spot: **the single Event Loop thread**. All messages must go through this one thread.
+## The Problem: adding too many threads
+Our traffic was growing and requests started to timeout. Our server had 36 CPU cores per instance, so we thought: "We should add more exchange worker threads to utilize all these cores." We increased our worker threads to match the available cores. We hoped the system would handle more requests.
 
-## 4. The Problem: Adding Too Many Threads
-Our traffic was growing. CPU usage was going up, and many bid requests started to timeout. 
-
-Our server had 36 CPU cores per instance, so we thought: "We should add more exchange worker threads to utilize all these cores."
-
-We increased our worker threads to match the available cores. We hoped the system would handle more requests. But performance dropped a lot:
-- CPU usage got even higher.
-- Auction latency increased.
-- Bid timeouts increased.
-- Overall throughput dropped.
+**Results**: CPU usage got higher (which was expected, more cores joined the party), but request timeouts increased.
 
 How could adding more workers make the system slower?
 
-## 5. Debugging the Issue
-We checked the operating system and looked at what the CPU was doing.
+## Debugging the Issue
+We checked what the CPU was doing (with htop). Because you can set names for threads, we could see that the event loop thread was overloaded at maximum CPU. We added too many worker threads, so they were all parsing requests, matching campaigns, and sending messages to the event loop at the same time. The single event loop could not read and route messages fast enough
 
-The problem became clear: **the Event Loop thread was fully overloaded and stuck at maximum CPU.**
+## How We Fixed It
 
-Because we added too many worker threads, they were all parsing requests, matching campaigns, and sending messages to the Event Loop at the same time. The single Event Loop could not read and route messages fast enough. It was overwhelmed, creating backpressure.
+### Fix 1: Remove work from the event loop
 
-Also, having too many threads trying to wake up the Event Loop caused a lot of contention. The CPU spent more time managing threads instead of doing real work.
-
-## 6. How We Fixed It
-
-### Fix 1: Reduce the Worker Threads
-First, we scaled down the thread pool based on what the Event Loop could actually handle, rather than just the raw available CPU cores. More threads are not always better. We must match the thread count to our system's architectural bottlenecks.
-
-We tested multiple configurations with different numbers of workers. By significantly reducing the number of exchange workers, the Event Loop had less pressure. Contention disappeared, and the system became noticeably faster. We discovered the sweet spot was using only **16 cores instead of 36 cores** per instance. Across our deployment of 50 instances, this tuning reduced our total footprint from **1800 cores back down to 800 cores**—while maintaining better latency and higher throughput.
-
-### Fix 2: Remove Work from the Event Loop
-The Event Loop had less pressure, but it was still running hot. In a Reactor pattern, the Event Loop must only route events.
-
-We read the code and found that there were "slightly slow" tasks, such as logging and data formatting, inside the Event Loop logic. 
+The Event Loop was running hot. In a Reactor pattern, we know the event loop should only route events, not actually do any work. So we hunted for any work inside the event loop. And we found that there were some "slightly slow" tasks, such as logging and data formatting, like this:
 
 ```cpp
-// BAD: Formatting strings inside the Event Loop
 void EventLoop::dispatch(Message msg) {
     std::string logMsg = formatMetric(msg); 
     logger.log(logMsg);
@@ -89,16 +64,14 @@ void EventLoop::dispatch(Message msg) {
 }
 ```
 
-These things only take a little time. But if we do them many times a second in a single thread, the CPU gets overloaded.
+These things only take a little time, but workers thread are pushing the event loop hard, so it adds up. We moved these non-critical work out of the event loop into the worker threads. After this change, performance slightly improved, which proved our point and built confidence a bit.
 
-We moved this non-critical work out of the Event Loop into the worker threads. After this change, the Event Loop was much faster. The system throughput improved a lot and the timeouts went away.
+### Fix 2: Reduce the worker threads
+Then we scaled down the thread pool based on what the event loop could handle, more threads are not always better. We must match the thread count to our system's architectural bottlenecks. We tested multiple configurations. By reducing the number of workers, the event loop had less pressure, and the system became noticeably faster. We discovered the sweet spot was using only **16 cores instead of 36 cores** per instance. Across our deployment of 50 instances, this reduced our total footprint from **1800 cores back down to 800 cores**, while maintaining better latency and higher throughput
 
-## 7. Key Lessons
+## Takeaways
 
-1. **Thread tuning: More is not always better.** Adding more threads can overload the event loop. Always test and find the best number for your system.
-2. **Event loop design: Keep it fast.** The Event Loop's only job is to route events. Never put slow code inside it.
-3. **Avoid bottlenecks in hybrid models:** Systems with both heavy worker threads and a single event loop look good, but the event loop can easily become the bottleneck. Watch it closely.
-
-For engineers building high-performance systems: always remember the bottleneck might not be the code doing the hard compute work, but the code organizing it. Scale carefully!
+- **Thread tuning: More is not always better**. Always test and find the best configuration for your system.
+- **Event loop design: Keep it fast**. The event loop is only to route events. Never put even slightly slow code inside it.
 
 > AI was used to help refine and polish this article based on factual information

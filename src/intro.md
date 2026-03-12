@@ -7,7 +7,7 @@ Five years in software engineering, mostly in the AdTech industry, where everyth
 ## Some of the work I'm proud of
 - [Optimize: from 1800 to 800 cores](./more-threads-can-harm-your-performance.md)
 - [Real-time weather augmentation](./weather-augmentation.md)
-- [Custom routing](./rtb-custom-routing.md)
+- [Custom routing](./custom-routing.md)
 - [Large maps are bad for Go GC](./large-maps-are-bad-for-go-gc.md)
 
 ## My tech stack
