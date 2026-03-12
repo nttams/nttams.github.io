@@ -1,8 +1,6 @@
 # Summary
 
 - [Intro](./intro.md)
-- [Things I'm proud of](./things-Im-proud-of.md)
-- [Things I've done or used](./things-Ive-done-or-used.md)
 - [Blogs](./blogs.md)
     - [More threads can harm performance](./more-threads-can-harm-your-performance.md)
     - [Real-time weather augmentation](./weather-augmentation.md)
