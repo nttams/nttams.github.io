@@ -37,26 +37,20 @@ This simple math lets us check the rules for all campaigns at the exact same tim
 ## Combining the Rules
 When a bid request starts, we create a main bitset called `active_campaigns`. We set all bits to `1` because all campaigns start as valid choices. Then, we check each filter. After a filter gives us its result bitset, we use a bitwise `AND` on `active_campaigns` to update the state.
 
-```text
-Request: loc="jp", lang="en"
-
-[active_campaigns]  1111... (All bits start as 1)
-       |
-       v
-Language Filter -> (include_map["en"] | empty_include) & ~exclude_map["en"]
-       |
-       v
-[active_campaigns]  active & language_result
-       |
-       v
-Location Filter -> (include_map["jp"] | empty_include) & ~exclude_map["jp"]
-       |
-       v
-[active_campaigns]  active & location_result
-       |
-       v
-Final Match -> Campaign Result
-```
+<div style="display:flex;flex-direction:column;align-items:center;font-family:system-ui,sans-serif;margin:24px 0;">
+  <div style="font-size:12px;color:#888;margin-bottom:10px;">Request: loc="jp", lang="en"</div>
+  <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;min-width:300px;">active_campaigns<span style="display:block;font-size:11px;color:#888;font-family:monospace;margin-top:2px;">1111… (all bits = 1)</span></div>
+  <div style="display:flex;justify-content:center;margin:3px 0;"><svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg></div>
+  <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;min-width:300px;">Language Filter<span style="display:block;font-size:11px;color:#888;font-family:monospace;margin-top:2px;">(include["en"] | empty) &amp; ~exclude["en"]</span></div>
+  <div style="display:flex;justify-content:center;margin:3px 0;"><svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg></div>
+  <div style="background:#e8e8e8;border:1.5px solid #aaa;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;min-width:300px;font-family:monospace;">active = active &amp; language_result</div>
+  <div style="display:flex;justify-content:center;margin:3px 0;"><svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg></div>
+  <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;min-width:300px;">Location Filter<span style="display:block;font-size:11px;color:#888;font-family:monospace;margin-top:2px;">(include["jp"] | empty) &amp; ~exclude["jp"]</span></div>
+  <div style="display:flex;justify-content:center;margin:3px 0;"><svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg></div>
+  <div style="background:#e8e8e8;border:1.5px solid #aaa;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;min-width:300px;font-family:monospace;">active = active &amp; location_result</div>
+  <div style="display:flex;justify-content:center;margin:3px 0;"><svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg></div>
+  <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;min-width:300px;">Final Match → Campaign Result</div>
+</div>
 
 ## Performance Benefits
 First, we skip the slow loop over all campaigns. The time it takes now depends only on how many attributes the bid request has, not how many campaigns we run. This keeps the system fast even when we add many more campaigns.
@@ -67,5 +61,3 @@ Finally, bitsets use very little memory. We can track many campaigns with just a
 
 ## Reference:
 - https://github.com/rtbkit/rtbkit/wiki/Filter
-
-> AI was used to help refine and polish this article based on factual information

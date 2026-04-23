@@ -12,8 +12,6 @@ We have two main challenges on the hot path:
 - Checking if a request needs weather data.
 - Augmenting the request with weather data within the latency budget.
 
----
-
 ## Challenge 1: Check if a request needs weather data
 
 This happens for every HTTP request, so it must be very fast and have predictable execution time.
@@ -24,22 +22,13 @@ We can save the borders of the US and EU as complex polygons. When a request com
 - **Heavy CPU load**: Country borders are complex. The US polygon alone has thousands of edges. Ray casting is expensive per request.
 - **Unpredictable latency**: Computation time depends on polygon shape and point location. A point inside a complex border takes much longer than a point outside. This breaks p99 latency limits.
 
-```text
-+-------------+
-| HTTP Request|
-| (lat, lng)  |
-+------+------+
-       |
-       v
-+--------------+
-| Ray Casting  |
-+------+-------+
-       |
-       v
-+--------------+
-|   Yes / No   |
-+--------------+
-```
+<div style="display:flex;flex-direction:column;align-items:center;font-family:system-ui,sans-serif;margin:24px 0;">
+  <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">HTTP Request<span style="display:block;font-size:11px;color:#888;margin-top:2px;">(lat, lng)</span></div>
+  <div style="display:flex;justify-content:center;margin:3px 0;"><svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg></div>
+  <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">Ray Casting<span style="display:block;font-size:11px;color:#888;margin-top:2px;">point-in-polygon check</span></div>
+  <div style="display:flex;justify-content:center;margin:3px 0;"><svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg></div>
+  <div style="background:#e8e8e8;border:1.5px solid #aaa;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">Yes / No</div>
+</div>
 
 ### The Optimized Approach: Uber H3
 
@@ -48,65 +37,28 @@ To remove heavy computation from hot path, we do the work offline. We use [Uber 
 **Offline Preprocessing:**
 We map our region polygons (US and EU) onto the H3 grid at a chosen resolution. We find which H3 hexagons are inside our polygons. The result is a set of `Target Cell IDs`. We load this set into memory as a Go `map[uint64]bool`.
 
-```text
-+------------------+
-| Region Polygons  |
-+---------+--------+
-          |
-          v
-+------------------+
-| Polygon -> H3    |
-| Cell Conversion  |
-+---------+--------+
-          | (Offline)
-          v
-+------------------+
-| Set of Cell IDs  |
-+------------------+
-```
+<div style="display:flex;flex-direction:column;align-items:center;font-family:system-ui,sans-serif;margin:24px 0;">
+  <div style="font-size:11px;color:#888;border:1px solid #d8d8d8;border-radius:4px;padding:2px 10px;margin-bottom:8px;">Offline</div>
+  <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">Region Polygons</div>
+  <div style="display:flex;justify-content:center;margin:3px 0;"><svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg></div>
+  <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">Polygon → H3 Cell Conversion</div>
+  <div style="display:flex;justify-content:center;margin:3px 0;"><svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg></div>
+  <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">Set of Cell IDs</div>
+</div>
 
 **Hot Path Implementation:**
 When a request arrives, we convert its coordinates to an H3 cell ID using the H3 library. Then we check if this ID exists in our in-memory set.
 
-```text
-+-------------+
-| HTTP Request|
-| (lat, lng)  |
-+------+------+
-       |
-       v
-+--------------+
-| lat/lng ->   |
-| H3 Cell ID   |
-+------+-------+
-       | O(1) Lookup
-       v
-+--------------+
-| Cell ID in   |
-| Target Set?  |
-+------+-------+
-       |
-       v
-+--------------+
-|  Yes / No    |
-+--------------+
-```
-
-Pseudocode:
-
-```go
-// Pre-loaded in memory at startup
-var targetH3Cells map[uint64]bool // populated from offline preprocessing
-
-func ShouldAugmentWeather(lat, lng float64) bool {
-    // Convert lat/lng to an H3 index at resolution 5.
-    // This is purely mathematical and takes nanoseconds.
-    cellID := h3.LatLngToCell(h3.LatLng{Lat: lat, Lng: lng}, 5)
-
-    // O(1) lookup
-    return targetH3Cells[uint64(cellID)]
-}
-```
+<div style="display:flex;flex-direction:column;align-items:center;font-family:system-ui,sans-serif;margin:24px 0;">
+  <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">HTTP Request<span style="display:block;font-size:11px;color:#888;margin-top:2px;">(lat, lng)</span></div>
+  <div style="display:flex;justify-content:center;margin:3px 0;"><svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg></div>
+  <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">lat/lng → H3 Cell ID</div>
+  <div style="font-size:11px;color:#888;margin:2px 0;">O(1) Lookup</div>
+  <div style="display:flex;justify-content:center;margin:3px 0;"><svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg></div>
+  <div style="background:#e8e8e8;border:1.5px solid #aaa;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">Cell ID in Target Set?</div>
+  <div style="display:flex;justify-content:center;margin:3px 0;"><svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg></div>
+  <div style="background:#e8e8e8;border:1.5px solid #aaa;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">Yes / No</div>
+</div>
 
 #### Building the Cell ID Set
 
@@ -119,8 +71,6 @@ Choosing H3 resolution is a space-time trade-off.
 - **Lower resolution** (larger hexagons): Less accurate, less memory
 
 For us, resolution `5` (one hexagon is ~252 sq km, each edge is ~8.5 km) is a good starting point. Weather targeting doesn't need high accuracy. We can easily adjust if the requirement change. Another optimization is to apply different resolutions at different regions, but that is not covered here
-
----
 
 ## Challenge 2: Augmenting Requests Without Blocking
 
@@ -143,180 +93,121 @@ In the request handler, when a request needs weather, we get its H3 Cell ID and 
 - **Cache Hit:** Good
 - **Cache Miss:** We add that missing cell ID to a Redis Set and forward the request upstream without weather data
 
-```text
-+------------------+
-| HTTP Request     |
-| (lat, lng)       |
-+--------+---------+
-         |
-         v
-+------------------+
-| lat/lng -> H3 ID |
-+--------+---------+
-         |
-         v
-+------------------+
-| Redis Lookup     |
-+----+--------+----+
-     |        |
-   Hit      Miss
-     |        |
-     v        v
-+--------+   +----------------------+
-| Attach |   | Add cell ID to Redis |
-| Weather|   | set: cells_to_fetch  |
-+---+----+   +----------+-----------+
-    |                   |
-    +--------+----------+
-             |
-             v
-    +------------------+
-    | Forward to       |
-    | Upstream         |
-    +------------------+
-```
+<div style="display:flex;flex-direction:column;align-items:center;font-family:system-ui,sans-serif;margin:24px 0;">
+  <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">HTTP Request<span style="display:block;font-size:11px;color:#888;margin-top:2px;">(lat, lng)</span></div>
+  <div style="display:flex;justify-content:center;margin:3px 0;"><svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg></div>
+  <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">lat/lng → H3 Cell ID</div>
+  <div style="display:flex;justify-content:center;margin:3px 0;"><svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg></div>
+  <div style="background:#e8e8e8;border:1.5px solid #aaa;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">Redis Lookup</div>
+  <div style="display:flex;justify-content:center;"><svg width="14" height="8" viewBox="0 0 14 8"><line x1="7" y1="0" x2="7" y2="8" stroke="#c0c0c0" stroke-width="1.5"/></svg></div>
+  <div style="display:flex;gap:40px;align-items:flex-start;border-top:1.5px solid #c0c0c0;padding-top:8px;">
+    <div style="display:flex;flex-direction:column;align-items:center;">
+      <div style="font-size:11px;color:#888;margin-bottom:3px;">Hit</div>
+      <div style="display:flex;justify-content:center;margin:2px 0;"><svg width="14" height="16" viewBox="0 0 14 16"><line x1="7" y1="0" x2="7" y2="9" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,16 2,8 12,8" fill="#c0c0c0"/></svg></div>
+      <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 14px;text-align:center;font-size:13px;color:#2d2d2d;">Attach Weather Data</div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;">
+      <div style="font-size:11px;color:#888;margin-bottom:3px;">Miss</div>
+      <div style="display:flex;justify-content:center;margin:2px 0;"><svg width="14" height="16" viewBox="0 0 14 16"><line x1="7" y1="0" x2="7" y2="9" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,16 2,8 12,8" fill="#c0c0c0"/></svg></div>
+      <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 14px;text-align:center;font-size:13px;color:#2d2d2d;">Add cell ID to<br>cells_to_fetch</div>
+    </div>
+  </div>
+  <div style="display:flex;justify-content:center;margin:8px 0 3px;"><svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg></div>
+  <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">Forward to Upstream</div>
+</div>
+
 #### The Background Refresher
 
 We run a background worker alongside our HTTP server. We call it the Weather Refresher.
 
 Every few seconds, the refresher reads the `cells_to_fetch` Set in Redis. It pops the cell IDs, converts them to latitude/longitude points, and calls the slow API. When it gets the data, it saves it in Redis with a TTL of 30 to 60 minutes.
 
-```text
-(runs every 10s)
-
-+----------------------+
-| Weather Refresher    |
-+----------+-----------+
-           |
-           v
-+----------------------+
-| Pop cells_to_fetch   |
-+----------+-----------+
-           |
-           v
-+----------------------+
-| Cell -> lat/lng      |
-+----------+-----------+
-           |
-           v
-+----------------------+
-| Call Weather API     |
-| (slow, ~seconds)     |
-+----------+-----------+
-           |
-           v
-+----------------------+
-| Update Redis Cache   |
-| (Set key + TTL)      |
-+----------------------+
-```
+<div style="display:flex;flex-direction:column;align-items:center;font-family:system-ui,sans-serif;margin:24px 0;">
+  <div style="font-size:11px;color:#888;border:1px solid #d8d8d8;border-radius:4px;padding:2px 10px;margin-bottom:8px;">runs every 10s</div>
+  <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">Weather Refresher</div>
+  <div style="display:flex;justify-content:center;margin:3px 0;"><svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg></div>
+  <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">Pop cells_to_fetch</div>
+  <div style="display:flex;justify-content:center;margin:3px 0;"><svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg></div>
+  <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">Cell → lat/lng</div>
+  <div style="display:flex;justify-content:center;margin:3px 0;"><svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg></div>
+  <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">Call Weather API<span style="display:block;font-size:11px;color:#888;margin-top:2px;">slow, ~seconds</span></div>
+  <div style="display:flex;justify-content:center;margin:3px 0;"><svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg></div>
+  <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">Update Redis Cache<span style="display:block;font-size:11px;color:#888;margin-top:2px;">Set key + TTL</span></div>
+</div>
 
 In our cache miss path, we use Redis `SADD`. If a popular location's cache expires, we might get thousands of requests from that cell instantly. Using a Redis Set, items are automatically deduplicated. The worker fetches data for each cell only once.
 
 ## Putting It All Together
 
-```text
-                   OFFLINE (build time)                            RUNTIME
-          ┌──────────────────────────────┐
-          │  Region Polygons (GeoJSON)   │
-          └──────────────┬───────────────┘
-                         │
-                         v
-          ┌──────────────────────────────┐
-          │  geodata: Polygon -> H3      │
-          │  Cell IDs (resolution 5)     │
-          └──────────────┬───────────────┘
-                         │
-                         v
-          ┌──────────────────────────────┐
-          │  CSV files per country       │        ┌───────────────────────────────┐
-          │  (e.g. h3_res_5_usa.csv)     │───────>│  Startup: load CSV into       │
-          └──────────────────────────────┘        │  map[uint64]bool (Target Set) │
-                                                  └──────────────┬────────────────┘
-                                                                 │
-            ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─
-                                                                 │
-                            HOT PATH (per request, < 3ms)        │
-                                                                 v
-                                                  ┌───────────────────────────────┐
-                                                  │  HTTP Request (lat, lng)      │
-                                                  └──────────────┬────────────────┘
-                                                                 │
-                                                                 v
-                                                  ┌───────────────────────────────┐
-                                                  │  lat/lng -> H3 Cell ID        │
-                                                  └──────────────┬────────────────┘
-                                                                 │
-                                                                 v
-                                                  ┌────────────────────-──────────┐
-                                                  │  Cell ID in Target Set?       │
-                                                  └──────┬────────────────────────┘
-                                                         │                  │
-                                                        YES                 NO
-                                                         │                  │
-                                                         v                  │
-                                                  ┌──────────────────┐      │
-                                                  │  Redis Lookup    │      │
-                                                  │  (cache key =    │      │
-                                                  │   H3 Cell ID)    │      │
-                                                  └──┬───────────┬───┘      │
-                                                     │           │          │
-                                                   HIT          MISS        │
-                                                     │           │          │
-                                                     v           v          │
-                                              ┌──────────┐ ┌────────────┐   │
-                                              │  Attach  │ │ SADD cell  │   │
-                                              │  weather │ │ to Redis   │   │
-                                              │  data    │ │ set:       │   │
-                                              │          │ │ cells_to_  │   │
-                                              │          │ │ fetch      │   │
-                                              └────┬─────┘ └─────┬──────┘   │
-                                                   │             │          │
-                                                   │      ┌──────┘          │
-                                                   │      │  Do nothing     │
-                                                   │      │                 │
-                                                   │      │                 │
-                                                   │      │                 │
-                                                   └──┬───┘                 │
-                                                      │                     │
-                                                      v                     │
-                                                  ┌──────────────────┐      │
-                                                  │  Forward to      │<────-┘
-                                                  │  Upstream        │
-                                                  └──────────────────┘
+<div style="font-family:system-ui,sans-serif;font-size:13px;color:#2d2d2d;margin:24px 0;display:flex;flex-direction:column;gap:16px;">
 
-            ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─
+  <!-- OFFLINE section -->
+  <div style="border:1px solid #d8d8d8;border-radius:8px;padding:16px 20px;display:flex;flex-direction:column;align-items:center;">
+    <div style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">Offline, Build Time</div>
+    <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">Region Polygons (GeoJSON)</div>
+    <div style="display:flex;justify-content:center;margin:3px 0;"><svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg></div>
+    <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">geodata: Polygon → H3 Cell IDs<span style="display:block;font-size:11px;color:#888;margin-top:2px;">resolution 5</span></div>
+    <div style="display:flex;justify-content:center;margin:3px 0;"><svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg></div>
+    <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">CSV files per country<span style="display:block;font-size:11px;color:#888;margin-top:2px;">e.g. h3_res_5_usa.csv</span></div>
+    <div style="display:flex;justify-content:center;margin:3px 0;"><svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg></div>
+    <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">Startup: load CSV into<br><code style="font-size:11px;">map[uint64]bool</code> (Target Set)</div>
+  </div>
 
-                            BACKGROUND LOOP (every 10s)
+  <!-- HOT PATH section -->
+  <div style="border:1px solid #d8d8d8;border-radius:8px;padding:16px 20px;display:flex;flex-direction:column;align-items:center;">
+    <div style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">Hot Path, per request, &lt;3ms</div>
+    <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">HTTP Request<span style="display:block;font-size:11px;color:#888;margin-top:2px;">(lat, lng)</span></div>
+    <div style="display:flex;justify-content:center;margin:3px 0;"><svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg></div>
+    <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">lat/lng → H3 Cell ID</div>
+    <div style="display:flex;justify-content:center;margin:3px 0;"><svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg></div>
+    <div style="background:#e8e8e8;border:1.5px solid #aaa;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">Cell ID in Target Set?</div>
+    <div style="display:flex;justify-content:center;"><svg width="14" height="8" viewBox="0 0 14 8"><line x1="7" y1="0" x2="7" y2="8" stroke="#c0c0c0" stroke-width="1.5"/></svg></div>
+    <div style="display:flex;gap:48px;align-items:flex-start;border-top:1.5px solid #c0c0c0;padding-top:8px;">
+      <div style="display:flex;flex-direction:column;align-items:center;">
+        <div style="font-size:11px;color:#888;margin-bottom:3px;">No</div>
+        <div style="display:flex;justify-content:center;margin:2px 0;"><svg width="14" height="16" viewBox="0 0 14 16"><line x1="7" y1="0" x2="7" y2="9" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,16 2,8 12,8" fill="#c0c0c0"/></svg></div>
+        <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 14px;text-align:center;font-size:13px;color:#2d2d2d;">Skip augmentation</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;">
+        <div style="font-size:11px;color:#888;margin-bottom:3px;">Yes</div>
+        <div style="display:flex;justify-content:center;margin:2px 0;"><svg width="14" height="16" viewBox="0 0 14 16"><line x1="7" y1="0" x2="7" y2="9" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,16 2,8 12,8" fill="#c0c0c0"/></svg></div>
+        <div style="background:#e8e8e8;border:1.5px solid #aaa;border-radius:6px;padding:9px 14px;text-align:center;font-size:13px;color:#2d2d2d;">Redis Lookup<span style="display:block;font-size:11px;color:#888;margin-top:2px;">cache key = H3 Cell ID</span></div>
+        <div style="display:flex;justify-content:center;"><svg width="14" height="8" viewBox="0 0 14 8"><line x1="7" y1="0" x2="7" y2="8" stroke="#c0c0c0" stroke-width="1.5"/></svg></div>
+        <div style="display:flex;gap:32px;align-items:flex-start;border-top:1.5px solid #c0c0c0;padding-top:8px;">
+          <div style="display:flex;flex-direction:column;align-items:center;">
+            <div style="font-size:11px;color:#888;margin-bottom:3px;">Hit</div>
+            <div style="display:flex;justify-content:center;margin:2px 0;"><svg width="14" height="16" viewBox="0 0 14 16"><line x1="7" y1="0" x2="7" y2="9" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,16 2,8 12,8" fill="#c0c0c0"/></svg></div>
+            <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 14px;text-align:center;font-size:13px;color:#2d2d2d;">Attach weather data</div>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;">
+            <div style="font-size:11px;color:#888;margin-bottom:3px;">Miss</div>
+            <div style="display:flex;justify-content:center;margin:2px 0;"><svg width="14" height="16" viewBox="0 0 14 16"><line x1="7" y1="0" x2="7" y2="9" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,16 2,8 12,8" fill="#c0c0c0"/></svg></div>
+            <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 14px;text-align:center;font-size:13px;color:#2d2d2d;">SADD cell to<br>cells_to_fetch</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:center;margin:10px 0 3px;"><svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg></div>
+    <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">Forward to Upstream</div>
+  </div>
 
-                        ┌─────────────────────────────────────┐
-                        │  Weather Refresher                  │
-                        └──────────────────┬──────────────────┘
-                                           │
-                                           v
-                        ┌─────────────────────────────────────┐
-                        │  SPOP cells_to_fetch (up to 50)     │
-                        └──────────────────┬──────────────────┘
-                                           │
-                                           v
-                        ┌─────────────────────────────────────┐
-                        │  Cell ID -> lat/lng                 │
-                        └──────────────────┬──────────────────┘
-                                           │
-                                           v
-                        ┌─────────────────────────────────────┐
-                        │  Call Weather API (slow, ~seconds)  │
-                        └──────────────────┬──────────────────┘
-                                           │
-                                           v
-                        ┌─────────────────────────────────────┐
-                        │  Update Redis Cache (key + TTL)     │
-                        └─────────────────────────────────────┘
-```
+  <!-- BACKGROUND LOOP section -->
+  <div style="border:1px solid #d8d8d8;border-radius:8px;padding:16px 20px;display:flex;flex-direction:column;align-items:center;">
+    <div style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">Background Loop, every 10s</div>
+    <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">Weather Refresher</div>
+    <div style="display:flex;justify-content:center;margin:3px 0;"><svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg></div>
+    <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">SPOP cells_to_fetch<span style="display:block;font-size:11px;color:#888;margin-top:2px;">up to 50 at a time</span></div>
+    <div style="display:flex;justify-content:center;margin:3px 0;"><svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg></div>
+    <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">Cell ID → lat/lng</div>
+    <div style="display:flex;justify-content:center;margin:3px 0;"><svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg></div>
+    <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">Call Weather API<span style="display:block;font-size:11px;color:#888;margin-top:2px;">slow, ~seconds</span></div>
+    <div style="display:flex;justify-content:center;margin:3px 0;"><svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg></div>
+    <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">Update Redis Cache<span style="display:block;font-size:11px;color:#888;margin-top:2px;">key + TTL</span></div>
+  </div>
+
+</div>
 
 ## Takeaways
 - Move heavy math offline
 - Remove uncontrollable latency from the hot path
 - Decouple with background workers
-
-> AI was used to help refine and polish this article based on factual information

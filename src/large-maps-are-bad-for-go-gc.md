@@ -138,5 +138,3 @@ The results:
 - Profile early and often
 - Avoid large maps with pointers
 - Consider external stores
-
-> AI was used to help refine and polish this article based on factual information

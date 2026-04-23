@@ -85,5 +85,3 @@ BenchmarkHTTPNoDiscard-8           11319            106628 ns/op           51070
 When working with `net/http` in Go, we should never assume `defer resp.Body.Close()` is a complete solution:
 - We must read the body to EOF
 - Use `io.Copy(io.Discard, resp.Body)` to safely flush unwanted bytes
-
-> AI was used to help refine and polish this article based on factual information
