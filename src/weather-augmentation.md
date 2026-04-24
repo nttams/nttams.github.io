@@ -1,22 +1,20 @@
 # Real-time Weather Augmentation
 
-Our HTTP server handles global traffic and must respond in under **100ms** end-to-end. For requests originating from specific regions (US, EU), we enrich them with local weather data before passing them to upstream processing. Weather context lets the upstream system make better decisions. A campaign for rain gear should bid higher when it is actually raining.
-
-The constraint is tight. The upstream system has strict SLAs and cannot absorb extra latency, so weather augmentation must complete in under **3ms** per request.
+Our HTTP server handles global traffic and must respond in under **100ms** end-to-end. A new feature request comes in: augment requests with local weather data before passing them to upstream processing. Weather context lets the upstream system make better decisions. A campaign for rain gear should bid higher when it is actually raining. The catch is that not all requests need this. Only requests from configurable target regions do, for example the US and EU.
 
 The requirements are:
-- **Input:** Each request carries geographic coordinates (latitude and longitude).
+- **Input:** Each request has geographic coordinates (latitude and longitude)
 - **External API:** Weather data comes from a third-party provider. It can take seconds to respond.
-- **Latency:** Augmentation must finish in under **3ms**, end-to-end on the hot path.
-- **Targeting:** Only requests from targeted regions need weather data.
+- **Latency:** Augmentation must finish in under **3ms**
+- **Targeting:** Only requests from targeted regions need weather data
 
 We have two main challenges on the hot path:
-- Checking whether a request needs weather data, fast enough to not matter.
-- Fetching and attaching weather data within the latency budget.
+- Checking whether a request needs weather data
+- Fetching and attaching weather data within the latency budget
 
 ## Challenge 1: Check if a request needs weather data
 
-This happens for every HTTP request, so it must be very fast and have predictable execution time.
+This happens for every HTTP request, so it must be very fast and predictable
 
 ### The Naive Approach: Ray Casting
 
@@ -24,7 +22,7 @@ We can represent region boundaries as polygons and use a point-in-polygon algori
 
 This is conceptually simple but breaks down in practice:
 - **Heavy CPU load**: Country borders are complex. The US polygon alone can have thousands of edges. Checking each one on every incoming request is expensive at scale.
-- **Unpredictable latency**: Computation time varies with polygon complexity and point location. A point near a jagged coastline takes longer than a point clearly inland. This variance is what kills p99 latency budgets.
+- **Unpredictable latency**: Computation time varies with polygon complexity and point location
 
 <div style="display:flex;flex-direction:column;align-items:center;font-family:system-ui,sans-serif;margin:24px 0;">
   <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">HTTP Request<span style="display:block;font-size:11px;color:#888;margin-top:2px;">(lat, lng)</span></div>
@@ -36,14 +34,13 @@ This is conceptually simple but breaks down in practice:
 
 ### The Optimized Approach: Uber H3
 
-The root problem with ray casting is that the work happens at request time. We fix this by doing the geometry work offline, before any request arrives.
+The problem with ray casting is that the work happens at request time. We fix this by doing the geometry work offline, before any request arrives.
 
-We use [Uber H3](https://h3geo.org), a hierarchical grid system that divides the globe into uniform hexagonal cells. Each cell has a unique 64-bit integer ID. Converting a latitude/longitude pair to a cell ID is a pure arithmetic operation: no polygon intersection, no edge traversal. It runs in constant time and constant memory.
+We use [Uber H3](https://h3geo.org), a grid system that divides the globe into uniform hexagonal cells. Each cell has a unique 64-bit integer ID. Converting a latitude/longitude pair to a cell ID is fast and predictable
 
 **Offline Preprocessing:**
-We map our target region polygons (US, EU) onto the H3 grid at a chosen resolution. This gives us a set of cell IDs that cover the regions. We call this the `Target Cell Set`. At server startup, we load this set into memory as a Go `map[uint64]bool`.
+We map our target region polygons (e.g. US, EU) onto the H3 grid at a chosen resolution. This gives us a set of cell IDs that cover the regions. We call this the `Target Cell Set`. At server startup, we load this set into memory as a Go `map[uint64]bool`.
 
-**Why `map[uint64]bool` and not something fancier?** A hash map lookup on a 64-bit integer is as fast as a lookup gets. Bloom filters would reduce memory but add false positives. A sorted slice with binary search would save memory but add branching. For our scale, the plain map is the right tool.
 
 <div style="display:flex;flex-direction:column;align-items:center;font-family:system-ui,sans-serif;margin:24px 0;">
   <div style="font-size:11px;color:#888;border:1px solid #d8d8d8;border-radius:4px;padding:2px 10px;margin-bottom:8px;">Offline</div>
@@ -55,7 +52,7 @@ We map our target region polygons (US, EU) onto the H3 grid at a chosen resoluti
 </div>
 
 **Hot Path:**
-When a request arrives, we convert its coordinates to an H3 cell ID. Then we check if that ID is in the Target Cell Set. The check is a single map lookup, O(1), with no variance based on geographic complexity.
+When a request arrives, we convert its coordinates to an H3 cell ID. Then we check if that ID is in the Target Cell Set. The check is a single map lookup, O(1), no variance based on geographic complexity.
 
 <div style="display:flex;flex-direction:column;align-items:center;font-family:system-ui,sans-serif;margin:24px 0;">
   <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">HTTP Request<span style="display:block;font-size:11px;color:#888;margin-top:2px;">(lat, lng)</span></div>
@@ -76,32 +73,28 @@ We use [geodata](https://github.com/nttams/geodata), a small open-source tool th
 
 H3 resolution controls the size of each hexagonal cell. Higher resolution means smaller cells, better geographic precision, but more cells to store.
 
-| Resolution | Cell Area | Edge Length | Approx. US cells |
+| Resolution | Avg Cell Area | Avg Edge Length | Approx. US cells |
 |---|---|---|---|
-| 3 | ~12,000 km² | ~60 km | ~2,000 |
-| 4 | ~1,700 km² | ~22 km | ~14,000 |
-| 5 | ~252 km² | ~8.5 km | ~97,000 |
-| 6 | ~36 km² | ~3.2 km | ~680,000 |
+| 3 | 12,393 km² | 68.98 km | ~2,000 |
+| 4 | 1,770 km² | 26.07 km | ~14,000 |
+| 5 | 253 km² | 9.85 km | ~97,000 |
+| 6 | 36 km² | 3.73 km | ~680,000 |
 
 We use resolution `5`. At that resolution, the US is covered by roughly 97,000 cells. Each cell ID is a `uint64` (8 bytes). A Go `map[uint64]bool` for the US at resolution 5 occupies roughly 10-15 MB including map overhead. That is cheap. We load the CSV at startup and keep it in memory for the lifetime of the process.
 
-Weather targeting does not need street-level precision. An 8.5 km edge length is accurate enough: weather is consistent within that radius, and the campaign targeting criteria are not that fine-grained. If requirements tighten, we can increase resolution without changing anything else in the system.
+Weather targeting does not need street-level precision. An 10km edge length is accurate enough: weather is consistent within that radius, and the campaign targeting criteria are not that fine-grained. If requirements tighten, we can increase resolution without changing anything else in the system.
 
-One further optimization is to use different resolutions for different regions. Dense urban areas might justify higher resolution for accuracy; sparse regions can afford lower resolution to save memory. We did not implement this, but the system supports it cleanly.
+One further optimization is to use different resolutions for different regions. Dense urban areas might justify higher resolution for accuracy; sparse regions can afford lower resolution to save memory
 
 ## Challenge 2: Augmenting Requests Without Blocking
 
-We know the request is in the targeted region. Now we need to attach weather data in under 3ms. The weather API takes seconds. Something has to give.
+Now we know the request is in the targeted region. Now we need to attach weather data in under 3ms. But the weather API takes seconds
 
-### The Naive Approach: Direct API Calls
+### Hit-Miss Cache with Background Refresher
 
-Call the weather API inline in the request handler and wait for the response. This immediately blows the budget. A network call to a third-party API has a floor latency of tens of milliseconds, let alone seconds under load.
+The key insight is that weather data does not change per-request. Two requests from the same H3 cell within 15 minutes will see the same weather. We exploit this by caching weather data keyed by H3 cell ID, and refreshing it asynchronously in the background
 
-### The Optimized Approach: Hit-Miss Cache with Background Refresher
-
-The key insight is that weather data does not change per-request. Two requests from the same H3 cell within 15 minutes will see the same weather. We exploit this by caching weather data keyed by H3 cell ID, and refreshing it asynchronously in the background.
-
-The system has two parts: a fast hot path that reads from cache, and a background worker that owns the slow API calls.
+The system has two parts: a fast hot path that reads from cache, and a background worker for the slow API calls.
 
 #### The Hot Path Flow
 
@@ -137,16 +130,16 @@ Using `SADD` is deliberate. If a popular location's cache expires and thousands 
 
 #### The Background Refresher
 
-The Weather Refresher is a goroutine that runs alongside the HTTP server on a 10-second tick. On each tick it:
+The Refresher is a dedicated service that runs on a 10-second tick. On each tick it:
 
 1. Pops up to 50 cell IDs from `cells_to_fetch` using Redis `SPOP`.
-2. Converts each cell ID back to a representative latitude/longitude point (H3 supports this natively).
-3. Calls the weather API, batching requests where the provider supports it.
-4. Writes the results back to Redis with a TTL of 30-60 minutes.
+2. Converts each cell ID back to a representative latitude/longitude point (H3 supports this natively)
+3. Calls the weather API, using batch request to reduce network roundtrip
+4. Writes the results back to Redis with a TTL of 15min
 
-After the refresher runs, subsequent requests from those cells will find their data in cache. The first request from a new location always misses. This is an acceptable trade-off: we sacrifice weather data for a few requests in exchange for never blocking on the API at request time.
+After the refresher runs, subsequent requests from those cells will find their data in cache. The first request from a new location always misses. This is an acceptable trade-off
 
-The batch size of 50 is a tunable constant. It caps the number of API calls per tick and keeps the refresher from stalling the next tick if the API is slow.
+The batch size and tick interval are both configurable. Together they act as a soft rate limiter on external API calls.
 
 <div style="display:flex;flex-direction:column;align-items:center;font-family:system-ui,sans-serif;margin:24px 0;">
   <div style="font-size:11px;color:#888;border:1px solid #d8d8d8;border-radius:4px;padding:2px 10px;margin-bottom:8px;">runs every 10s</div>
@@ -158,7 +151,7 @@ The batch size of 50 is a tunable constant. It caps the number of API calls per 
   <div style="display:flex;justify-content:center;margin:3px 0;"><svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg></div>
   <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">Call Weather API<span style="display:block;font-size:11px;color:#888;margin-top:2px;">slow, ~seconds, batched</span></div>
   <div style="display:flex;justify-content:center;margin:3px 0;"><svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg></div>
-  <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">Update Redis Cache<span style="display:block;font-size:11px;color:#888;margin-top:2px;">key=cell ID, TTL=30-60min</span></div>
+  <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">Update Redis Cache<span style="display:block;font-size:11px;color:#888;margin-top:2px;">key=cell ID, TTL=15min</span></div>
 </div>
 
 ## Putting It All Together
@@ -218,7 +211,7 @@ The batch size of 50 is a tunable constant. It caps the number of API calls per 
     </div>
     <div style="border:1px solid #d8d8d8;border-radius:8px;padding:16px 20px;flex:1;display:flex;flex-direction:column;align-items:center;">
       <div style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">Background Loop, every 10s</div>
-      <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;width:160px;">Weather Refresher<span style="display:block;font-size:11px;color:#888;margin-top:2px;">goroutine</span></div>
+      <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;width:160px;">Weather Refresher<span style="display:block;font-size:11px;color:#888;margin-top:2px;">dedicated service</span></div>
       <div style="display:flex;justify-content:center;margin:3px 0;"><svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg></div>
       <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;width:160px;">SPOP cells_to_fetch<span style="display:block;font-size:11px;color:#888;margin-top:2px;">up to 50 at a time</span></div>
       <div style="display:flex;justify-content:center;margin:3px 0;"><svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg></div>
@@ -226,18 +219,11 @@ The batch size of 50 is a tunable constant. It caps the number of API calls per 
       <div style="display:flex;justify-content:center;margin:3px 0;"><svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg></div>
       <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;width:160px;">Call Weather API<span style="display:block;font-size:11px;color:#888;margin-top:2px;">slow, ~seconds, batched</span></div>
       <div style="display:flex;justify-content:center;margin:3px 0;"><svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg></div>
-      <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;width:160px;">SET weather cache<span style="display:block;font-size:11px;color:#888;margin-top:2px;">key=cell ID, TTL=30-60min</span></div>
+      <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;width:160px;">SET weather cache<span style="display:block;font-size:11px;color:#888;margin-top:2px;">key=cell ID, TTL=15min</span></div>
     </div>
   </div>
 </div>
 
-## Trade-offs
-
-**First-request misses are unavoidable.** The first request from any new H3 cell always misses the weather cache. That request goes upstream without weather data. This is intentional: the alternative is blocking the hot path on the API, which is worse. In practice, popular regions warm up quickly, and traffic naturally clusters geographically.
-
-**Weather data is eventually consistent.** There is a window between when a cell's cache expires and when the refresher fetches new data. During that window, requests miss and go upstream without weather. The 30-60 minute TTL is calibrated to the weather provider's update frequency. Reducing the TTL increases freshness but increases API costs and miss rates.
-
-**The H3 boundary has some imprecision.** A point near the edge of a target region may fall in a cell that straddles the boundary. At resolution 5, the maximum error is about 8.5 km. For weather targeting, this is acceptable. Campaign targeting at that precision is not meaningful.
 
 ## Key Takeaways
 

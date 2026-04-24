@@ -92,8 +92,8 @@ We built this in Go using the standard `net/http/httputil.ReverseProxy` package 
 When a bid request arrives at the proxy:
 
 1. Read key attributes from the request (e.g. userID)
-2. For each compute node, check Redis to see if that node has any active campaigns that match those attributes
-3. Route the request to the node with the highest number of potential matches
+2. Look up those attributes in Redis to retrieve the pre-computed list of candidate nodes
+3. Randomly pick one node from that list and forward the request
 
 We only apply fast filter checks, the ones with high selectivity and low compute cost. The full filtering still happens on the compute node
 
@@ -102,9 +102,9 @@ We only apply fast filter checks, the ones with high selectivity and low compute
   <div style="display:flex;justify-content:center;margin:3px 0;"><svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg></div>
   <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;min-width:220px;">Parse Request<span style="display:block;font-size:11px;color:#888;margin-top:2px;">userID, ...</span></div>
   <div style="display:flex;justify-content:center;margin:3px 0;"><svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg></div>
-  <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;min-width:220px;">Query Redis<span style="display:block;font-size:11px;color:#888;margin-top:2px;">which nodes have matching campaigns?</span></div>
+  <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;min-width:220px;">Query Redis<span style="display:block;font-size:11px;color:#888;margin-top:2px;">pre-computed candidate nodes</span></div>
   <div style="display:flex;justify-content:center;margin:3px 0;"><svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg></div>
-  <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;min-width:220px;">Pick Best Node<span style="display:block;font-size:11px;color:#888;margin-top:2px;">highest match potential</span></div>
+  <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;min-width:220px;">Pick Node<span style="display:block;font-size:11px;color:#888;margin-top:2px;">random selection</span></div>
   <div style="display:flex;justify-content:center;margin:3px 0;"><svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg></div>
   <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;min-width:220px;">Forward to Node</div>
 </div>
