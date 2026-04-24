@@ -1,16 +1,18 @@
 # Real-time Weather Augmentation
 
-Our HTTP server gets global traffic and must respond in under **100ms**. For requests from specific regions (like US or EU), we need to add local weather data (temperature, rain, etc.) before passing them to upstream processing. There is a lot of work upstream, so weather augmentation must finish in under **3ms**.
+Our HTTP server handles global traffic and must respond in under **100ms** end-to-end. For requests originating from specific regions (US, EU), we enrich them with local weather data before passing them to upstream processing. Weather context lets the upstream system make better decisions. A campaign for rain gear should bid higher when it is actually raining.
 
-The requirements are strict:
-- **Input:** The request has geographic coordinates (latitude and longitude).
-- **External API:** Weather data comes from a third-party API, it can take seconds to respond.
-- **Latency:** Must finish in under **3ms**.
-- **Targeting:** We only add weather data to requests from targeted regions.
+The constraint is tight. The upstream system has strict SLAs and cannot absorb extra latency, so weather augmentation must complete in under **3ms** per request.
+
+The requirements are:
+- **Input:** Each request carries geographic coordinates (latitude and longitude).
+- **External API:** Weather data comes from a third-party provider. It can take seconds to respond.
+- **Latency:** Augmentation must finish in under **3ms**, end-to-end on the hot path.
+- **Targeting:** Only requests from targeted regions need weather data.
 
 We have two main challenges on the hot path:
-- Checking if a request needs weather data.
-- Augmenting the request with weather data within the latency budget.
+- Checking whether a request needs weather data, fast enough to not matter.
+- Fetching and attaching weather data within the latency budget.
 
 ## Challenge 1: Check if a request needs weather data
 
@@ -18,9 +20,11 @@ This happens for every HTTP request, so it must be very fast and have predictabl
 
 ### The Naive Approach: Ray Casting
 
-We can save the borders of the US and EU as complex polygons. When a request comes in, we run a "point-in-polygon" algorithm like ray casting. This approach is simple, but:
-- **Heavy CPU load**: Country borders are complex. The US polygon alone has thousands of edges. Ray casting is expensive per request.
-- **Unpredictable latency**: Computation time depends on polygon shape and point location. A point inside a complex border takes much longer than a point outside. This breaks p99 latency limits.
+We can represent region boundaries as polygons and use a point-in-polygon algorithm like ray casting: cast a ray from the point to infinity and count how many edges it crosses. If the count is odd, the point is inside.
+
+This is conceptually simple but breaks down in practice:
+- **Heavy CPU load**: Country borders are complex. The US polygon alone can have thousands of edges. Checking each one on every incoming request is expensive at scale.
+- **Unpredictable latency**: Computation time varies with polygon complexity and point location. A point near a jagged coastline takes longer than a point clearly inland. This variance is what kills p99 latency budgets.
 
 <div style="display:flex;flex-direction:column;align-items:center;font-family:system-ui,sans-serif;margin:24px 0;">
   <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">HTTP Request<span style="display:block;font-size:11px;color:#888;margin-top:2px;">(lat, lng)</span></div>
@@ -32,10 +36,14 @@ We can save the borders of the US and EU as complex polygons. When a request com
 
 ### The Optimized Approach: Uber H3
 
-To remove heavy computation from hot path, we do the work offline. We use [Uber H3](https://h3geo.org), a grid system that divides the globe into hexagons. Each hexagon covers a geographic area and has a unique 64-bit ID.
+The root problem with ray casting is that the work happens at request time. We fix this by doing the geometry work offline, before any request arrives.
+
+We use [Uber H3](https://h3geo.org), a hierarchical grid system that divides the globe into uniform hexagonal cells. Each cell has a unique 64-bit integer ID. Converting a latitude/longitude pair to a cell ID is a pure arithmetic operation: no polygon intersection, no edge traversal. It runs in constant time and constant memory.
 
 **Offline Preprocessing:**
-We map our region polygons (US and EU) onto the H3 grid at a chosen resolution. We find which H3 hexagons are inside our polygons. The result is a set of `Target Cell IDs`. We load this set into memory as a Go `map[uint64]bool`.
+We map our target region polygons (US, EU) onto the H3 grid at a chosen resolution. This gives us a set of cell IDs that cover the regions. We call this the `Target Cell Set`. At server startup, we load this set into memory as a Go `map[uint64]bool`.
+
+**Why `map[uint64]bool` and not something fancier?** A hash map lookup on a 64-bit integer is as fast as a lookup gets. Bloom filters would reduce memory but add false positives. A sorted slice with binary search would save memory but add branching. For our scale, the plain map is the right tool.
 
 <div style="display:flex;flex-direction:column;align-items:center;font-family:system-ui,sans-serif;margin:24px 0;">
   <div style="font-size:11px;color:#888;border:1px solid #d8d8d8;border-radius:4px;padding:2px 10px;margin-bottom:8px;">Offline</div>
@@ -46,8 +54,8 @@ We map our region polygons (US and EU) onto the H3 grid at a chosen resolution. 
   <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">Set of Cell IDs</div>
 </div>
 
-**Hot Path Implementation:**
-When a request arrives, we convert its coordinates to an H3 cell ID using the H3 library. Then we check if this ID exists in our in-memory set.
+**Hot Path:**
+When a request arrives, we convert its coordinates to an H3 cell ID. Then we check if that ID is in the Target Cell Set. The check is a single map lookup, O(1), with no variance based on geographic complexity.
 
 <div style="display:flex;flex-direction:column;align-items:center;font-family:system-ui,sans-serif;margin:24px 0;">
   <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">HTTP Request<span style="display:block;font-size:11px;color:#888;margin-top:2px;">(lat, lng)</span></div>
@@ -66,32 +74,43 @@ We use [geodata](https://github.com/nttams/geodata), a small open-source tool th
 
 #### Performance Tuning: H3 Resolution
 
-Choosing H3 resolution is a space-time trade-off.
-- **Higher resolution** (smaller hexagons): Better accuracy, more memory
-- **Lower resolution** (larger hexagons): Less accurate, less memory
+H3 resolution controls the size of each hexagonal cell. Higher resolution means smaller cells, better geographic precision, but more cells to store.
 
-For us, resolution `5` (one hexagon is ~252 sq km, each edge is ~8.5 km) is a good starting point. Weather targeting doesn't need high accuracy. We can easily adjust if the requirement change. Another optimization is to apply different resolutions at different regions, but that is not covered here
+| Resolution | Cell Area | Edge Length | Approx. US cells |
+|---|---|---|---|
+| 3 | ~12,000 km² | ~60 km | ~2,000 |
+| 4 | ~1,700 km² | ~22 km | ~14,000 |
+| 5 | ~252 km² | ~8.5 km | ~97,000 |
+| 6 | ~36 km² | ~3.2 km | ~680,000 |
+
+We use resolution `5`. At that resolution, the US is covered by roughly 97,000 cells. Each cell ID is a `uint64` (8 bytes). A Go `map[uint64]bool` for the US at resolution 5 occupies roughly 10-15 MB including map overhead. That is cheap. We load the CSV at startup and keep it in memory for the lifetime of the process.
+
+Weather targeting does not need street-level precision. An 8.5 km edge length is accurate enough: weather is consistent within that radius, and the campaign targeting criteria are not that fine-grained. If requirements tighten, we can increase resolution without changing anything else in the system.
+
+One further optimization is to use different resolutions for different regions. Dense urban areas might justify higher resolution for accuracy; sparse regions can afford lower resolution to save memory. We did not implement this, but the system supports it cleanly.
 
 ## Challenge 2: Augmenting Requests Without Blocking
 
-Now we know the request is in the targeted region. We must fetch and attach weather data to request in 3ms.
+We know the request is in the targeted region. Now we need to attach weather data in under 3ms. The weather API takes seconds. Something has to give.
 
 ### The Naive Approach: Direct API Calls
 
-The simple way is to call the third-party weather API in the request handler. This immediately breaks the 3ms budget as external API takes second to responds
+Call the weather API inline in the request handler and wait for the response. This immediately blows the budget. A network call to a third-party API has a floor latency of tens of milliseconds, let alone seconds under load.
 
-### The Optimized Approach: Hit-Miss Cache with Refresher
+### The Optimized Approach: Hit-Miss Cache with Background Refresher
 
-Weather does not change every minutes. If two requests are in the same H3 hexagon within 15 minutes, the weather data is probably the same. Even if weather changes, the weather data vendor may still not update very frequently (I know, I just can't prove it 😏)
+The key insight is that weather data does not change per-request. Two requests from the same H3 cell within 15 minutes will see the same weather. We exploit this by caching weather data keyed by H3 cell ID, and refreshing it asynchronously in the background.
 
-We decouple the hot path from the slow API. We use Redis as a cache, and a background worker to call the external API.
+The system has two parts: a fast hot path that reads from cache, and a background worker that owns the slow API calls.
 
 #### The Hot Path Flow
 
-In the request handler, when a request needs weather, we get its H3 Cell ID and check Redis for cached data.
+When a request needs weather, we look up its H3 cell ID in Redis.
 
-- **Cache Hit:** Good
-- **Cache Miss:** We add that missing cell ID to a Redis Set and forward the request upstream without weather data
+- **Cache Hit:** Attach the cached weather data. Done in a single Redis GET.
+- **Cache Miss:** We cannot wait for the API. Instead, we record the missing cell ID using Redis `SADD` into a set called `cells_to_fetch`, then forward the request upstream without weather data. The next request from the same cell will hit the cache after the background worker has filled it.
+
+Using `SADD` is deliberate. If a popular location's cache expires and thousands of requests arrive simultaneously, every one of them would write the same cell ID. Because `cells_to_fetch` is a Redis Set, duplicates are ignored automatically. The background worker will fetch that cell exactly once, not thousands of times.
 
 <div style="display:flex;flex-direction:column;align-items:center;font-family:system-ui,sans-serif;margin:24px 0;">
   <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">HTTP Request<span style="display:block;font-size:11px;color:#888;margin-top:2px;">(lat, lng)</span></div>
@@ -118,96 +137,110 @@ In the request handler, when a request needs weather, we get its H3 Cell ID and 
 
 #### The Background Refresher
 
-We run a background worker alongside our HTTP server. We call it the Weather Refresher.
+The Weather Refresher is a goroutine that runs alongside the HTTP server on a 10-second tick. On each tick it:
 
-Every few seconds, the refresher reads the `cells_to_fetch` Set in Redis. It pops the cell IDs, converts them to latitude/longitude points, and calls the slow API. When it gets the data, it saves it in Redis with a TTL of 30 to 60 minutes.
+1. Pops up to 50 cell IDs from `cells_to_fetch` using Redis `SPOP`.
+2. Converts each cell ID back to a representative latitude/longitude point (H3 supports this natively).
+3. Calls the weather API, batching requests where the provider supports it.
+4. Writes the results back to Redis with a TTL of 30-60 minutes.
+
+After the refresher runs, subsequent requests from those cells will find their data in cache. The first request from a new location always misses. This is an acceptable trade-off: we sacrifice weather data for a few requests in exchange for never blocking on the API at request time.
+
+The batch size of 50 is a tunable constant. It caps the number of API calls per tick and keeps the refresher from stalling the next tick if the API is slow.
 
 <div style="display:flex;flex-direction:column;align-items:center;font-family:system-ui,sans-serif;margin:24px 0;">
   <div style="font-size:11px;color:#888;border:1px solid #d8d8d8;border-radius:4px;padding:2px 10px;margin-bottom:8px;">runs every 10s</div>
   <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">Weather Refresher</div>
   <div style="display:flex;justify-content:center;margin:3px 0;"><svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg></div>
-  <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">Pop cells_to_fetch</div>
+  <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">SPOP cells_to_fetch<span style="display:block;font-size:11px;color:#888;margin-top:2px;">up to 50 at a time</span></div>
   <div style="display:flex;justify-content:center;margin:3px 0;"><svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg></div>
-  <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">Cell → lat/lng</div>
+  <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">Cell ID → lat/lng</div>
   <div style="display:flex;justify-content:center;margin:3px 0;"><svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg></div>
-  <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">Call Weather API<span style="display:block;font-size:11px;color:#888;margin-top:2px;">slow, ~seconds</span></div>
+  <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">Call Weather API<span style="display:block;font-size:11px;color:#888;margin-top:2px;">slow, ~seconds, batched</span></div>
   <div style="display:flex;justify-content:center;margin:3px 0;"><svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg></div>
-  <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">Update Redis Cache<span style="display:block;font-size:11px;color:#888;margin-top:2px;">Set key + TTL</span></div>
+  <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">Update Redis Cache<span style="display:block;font-size:11px;color:#888;margin-top:2px;">key=cell ID, TTL=30-60min</span></div>
 </div>
-
-In our cache miss path, we use Redis `SADD`. If a popular location's cache expires, we might get thousands of requests from that cell instantly. Using a Redis Set, items are automatically deduplicated. The worker fetches data for each cell only once.
 
 ## Putting It All Together
 
 <div style="font-family:system-ui,sans-serif;font-size:13px;color:#2d2d2d;margin:24px 0;display:flex;flex-direction:column;gap:16px;">
-
-  <!-- OFFLINE section -->
   <div style="border:1px solid #d8d8d8;border-radius:8px;padding:16px 20px;display:flex;flex-direction:column;align-items:center;">
     <div style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">Offline, Build Time</div>
     <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">Region Polygons (GeoJSON)</div>
     <div style="display:flex;justify-content:center;margin:3px 0;"><svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg></div>
-    <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">geodata: Polygon → H3 Cell IDs<span style="display:block;font-size:11px;color:#888;margin-top:2px;">resolution 5</span></div>
+    <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">geodata: Polygon → H3 Cell IDs<span style="display:block;font-size:11px;color:#888;margin-top:2px;">resolution 5, ~252 km² per cell</span></div>
     <div style="display:flex;justify-content:center;margin:3px 0;"><svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg></div>
     <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">CSV files per country<span style="display:block;font-size:11px;color:#888;margin-top:2px;">e.g. h3_res_5_usa.csv</span></div>
     <div style="display:flex;justify-content:center;margin:3px 0;"><svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg></div>
-    <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">Startup: load CSV into<br><code style="font-size:11px;">map[uint64]bool</code> (Target Set)</div>
+    <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">Server Startup: load CSV into <code style="font-size:11px;">map[uint64]bool</code> (Target Cell Set)</div>
   </div>
-
-  <!-- HOT PATH section -->
-  <div style="border:1px solid #d8d8d8;border-radius:8px;padding:16px 20px;display:flex;flex-direction:column;align-items:center;">
-    <div style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">Hot Path, per request, &lt;3ms</div>
-    <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">HTTP Request<span style="display:block;font-size:11px;color:#888;margin-top:2px;">(lat, lng)</span></div>
-    <div style="display:flex;justify-content:center;margin:3px 0;"><svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg></div>
-    <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">lat/lng → H3 Cell ID</div>
-    <div style="display:flex;justify-content:center;margin:3px 0;"><svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg></div>
-    <div style="background:#e8e8e8;border:1.5px solid #aaa;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">Cell ID in Target Set?</div>
-    <div style="display:flex;justify-content:center;"><svg width="14" height="8" viewBox="0 0 14 8"><line x1="7" y1="0" x2="7" y2="8" stroke="#c0c0c0" stroke-width="1.5"/></svg></div>
-    <div style="display:flex;gap:48px;align-items:flex-start;border-top:1.5px solid #c0c0c0;padding-top:8px;">
-      <div style="display:flex;flex-direction:column;align-items:center;">
-        <div style="font-size:11px;color:#888;margin-bottom:3px;">No</div>
-        <div style="display:flex;justify-content:center;margin:2px 0;"><svg width="14" height="16" viewBox="0 0 14 16"><line x1="7" y1="0" x2="7" y2="9" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,16 2,8 12,8" fill="#c0c0c0"/></svg></div>
-        <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 14px;text-align:center;font-size:13px;color:#2d2d2d;">Skip augmentation</div>
-      </div>
-      <div style="display:flex;flex-direction:column;align-items:center;">
-        <div style="font-size:11px;color:#888;margin-bottom:3px;">Yes</div>
-        <div style="display:flex;justify-content:center;margin:2px 0;"><svg width="14" height="16" viewBox="0 0 14 16"><line x1="7" y1="0" x2="7" y2="9" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,16 2,8 12,8" fill="#c0c0c0"/></svg></div>
-        <div style="background:#e8e8e8;border:1.5px solid #aaa;border-radius:6px;padding:9px 14px;text-align:center;font-size:13px;color:#2d2d2d;">Redis Lookup<span style="display:block;font-size:11px;color:#888;margin-top:2px;">cache key = H3 Cell ID</span></div>
-        <div style="display:flex;justify-content:center;"><svg width="14" height="8" viewBox="0 0 14 8"><line x1="7" y1="0" x2="7" y2="8" stroke="#c0c0c0" stroke-width="1.5"/></svg></div>
-        <div style="display:flex;gap:32px;align-items:flex-start;border-top:1.5px solid #c0c0c0;padding-top:8px;">
-          <div style="display:flex;flex-direction:column;align-items:center;">
-            <div style="font-size:11px;color:#888;margin-bottom:3px;">Hit</div>
-            <div style="display:flex;justify-content:center;margin:2px 0;"><svg width="14" height="16" viewBox="0 0 14 16"><line x1="7" y1="0" x2="7" y2="9" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,16 2,8 12,8" fill="#c0c0c0"/></svg></div>
-            <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 14px;text-align:center;font-size:13px;color:#2d2d2d;">Attach weather data</div>
-          </div>
-          <div style="display:flex;flex-direction:column;align-items:center;">
-            <div style="font-size:11px;color:#888;margin-bottom:3px;">Miss</div>
-            <div style="display:flex;justify-content:center;margin:2px 0;"><svg width="14" height="16" viewBox="0 0 14 16"><line x1="7" y1="0" x2="7" y2="9" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,16 2,8 12,8" fill="#c0c0c0"/></svg></div>
-            <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 14px;text-align:center;font-size:13px;color:#2d2d2d;">SADD cell to<br>cells_to_fetch</div>
+  <div style="display:flex;gap:16px;align-items:flex-start;">
+    <div style="border:1px solid #d8d8d8;border-radius:8px;padding:16px 20px;flex:1;display:flex;flex-direction:column;align-items:center;">
+      <div style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">Hot Path, per request, &lt;3ms</div>
+      <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;width:160px;">HTTP Request<span style="display:block;font-size:11px;color:#888;margin-top:2px;">(lat, lng)</span></div>
+      <div style="display:flex;justify-content:center;margin:3px 0;"><svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg></div>
+      <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;width:160px;">lat/lng → H3 Cell ID<span style="display:block;font-size:11px;color:#888;margin-top:2px;">O(1) arithmetic</span></div>
+      <div style="display:flex;justify-content:center;margin:3px 0;"><svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg></div>
+      <div style="background:#e8e8e8;border:1.5px solid #aaa;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;width:160px;">Cell ID in Target Cell Set?</div>
+      <div style="display:flex;justify-content:center;"><svg width="14" height="8" viewBox="0 0 14 8"><line x1="7" y1="0" x2="7" y2="8" stroke="#c0c0c0" stroke-width="1.5"/></svg></div>
+      <div style="display:flex;gap:24px;align-items:flex-start;border-top:1.5px solid #c0c0c0;padding-top:8px;">
+        <div style="display:flex;flex-direction:column;align-items:center;">
+          <div style="font-size:11px;color:#888;margin-bottom:3px;">No</div>
+          <div style="display:flex;justify-content:center;margin:2px 0;"><svg width="14" height="16" viewBox="0 0 14 16"><line x1="7" y1="0" x2="7" y2="9" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,16 2,8 12,8" fill="#c0c0c0"/></svg></div>
+          <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 10px;text-align:center;font-size:13px;color:#2d2d2d;">Skip augmentation</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:center;">
+          <div style="font-size:11px;color:#888;margin-bottom:3px;">Yes</div>
+          <div style="display:flex;justify-content:center;margin:2px 0;"><svg width="14" height="16" viewBox="0 0 14 16"><line x1="7" y1="0" x2="7" y2="9" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,16 2,8 12,8" fill="#c0c0c0"/></svg></div>
+          <div style="background:#e8e8e8;border:1.5px solid #aaa;border-radius:6px;padding:9px 10px;text-align:center;font-size:13px;color:#2d2d2d;">Redis GET<span style="display:block;font-size:11px;color:#888;margin-top:2px;">key = cell ID</span></div>
+          <div style="display:flex;justify-content:center;"><svg width="14" height="8" viewBox="0 0 14 8"><line x1="7" y1="0" x2="7" y2="8" stroke="#c0c0c0" stroke-width="1.5"/></svg></div>
+          <div style="display:flex;gap:16px;align-items:flex-start;border-top:1.5px solid #c0c0c0;padding-top:8px;">
+            <div style="display:flex;flex-direction:column;align-items:center;">
+              <div style="font-size:11px;color:#888;margin-bottom:3px;">Hit</div>
+              <div style="display:flex;justify-content:center;margin:2px 0;"><svg width="14" height="16" viewBox="0 0 14 16"><line x1="7" y1="0" x2="7" y2="9" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,16 2,8 12,8" fill="#c0c0c0"/></svg></div>
+              <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 10px;text-align:center;font-size:13px;color:#2d2d2d;">Attach weather data</div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;">
+              <div style="font-size:11px;color:#888;margin-bottom:3px;">Miss</div>
+              <div style="display:flex;justify-content:center;margin:2px 0;"><svg width="14" height="16" viewBox="0 0 14 16"><line x1="7" y1="0" x2="7" y2="9" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,16 2,8 12,8" fill="#c0c0c0"/></svg></div>
+              <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 10px;text-align:center;font-size:13px;color:#2d2d2d;">SADD cell to cells_to_fetch</div>
+            </div>
           </div>
         </div>
       </div>
+      <div style="display:flex;justify-content:center;margin:10px 0 3px;"><svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg></div>
+      <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;width:160px;">Forward to Upstream</div>
     </div>
-    <div style="display:flex;justify-content:center;margin:10px 0 3px;"><svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg></div>
-    <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">Forward to Upstream</div>
+    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding-top:40px;gap:8px;">
+      <div style="display:flex;align-items:center;gap:4px;"><svg width="20" height="14" viewBox="0 0 20 14"><line x1="0" y1="7" x2="13" y2="7" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="20,7 12,2 12,12" fill="#c0c0c0"/></svg><div style="font-size:11px;color:#888;">GET / SADD</div></div>
+      <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:12px 16px;text-align:center;font-size:13px;color:#2d2d2d;">Redis<span style="display:block;font-size:11px;color:#888;margin-top:4px;">weather cache</span><span style="display:block;font-size:11px;color:#888;">cells_to_fetch</span></div>
+      <div style="display:flex;align-items:center;gap:4px;"><div style="font-size:11px;color:#888;">SPOP / SET</div><svg width="20" height="14" viewBox="0 0 20 14"><line x1="20" y1="7" x2="7" y2="7" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="0,7 8,2 8,12" fill="#c0c0c0"/></svg></div>
+    </div>
+    <div style="border:1px solid #d8d8d8;border-radius:8px;padding:16px 20px;flex:1;display:flex;flex-direction:column;align-items:center;">
+      <div style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">Background Loop, every 10s</div>
+      <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;width:160px;">Weather Refresher<span style="display:block;font-size:11px;color:#888;margin-top:2px;">goroutine</span></div>
+      <div style="display:flex;justify-content:center;margin:3px 0;"><svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg></div>
+      <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;width:160px;">SPOP cells_to_fetch<span style="display:block;font-size:11px;color:#888;margin-top:2px;">up to 50 at a time</span></div>
+      <div style="display:flex;justify-content:center;margin:3px 0;"><svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg></div>
+      <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;width:160px;">Cell ID → lat/lng<span style="display:block;font-size:11px;color:#888;margin-top:2px;">H3 center point</span></div>
+      <div style="display:flex;justify-content:center;margin:3px 0;"><svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg></div>
+      <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;width:160px;">Call Weather API<span style="display:block;font-size:11px;color:#888;margin-top:2px;">slow, ~seconds, batched</span></div>
+      <div style="display:flex;justify-content:center;margin:3px 0;"><svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg></div>
+      <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;width:160px;">SET weather cache<span style="display:block;font-size:11px;color:#888;margin-top:2px;">key=cell ID, TTL=30-60min</span></div>
+    </div>
   </div>
-
-  <!-- BACKGROUND LOOP section -->
-  <div style="border:1px solid #d8d8d8;border-radius:8px;padding:16px 20px;display:flex;flex-direction:column;align-items:center;">
-    <div style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">Background Loop, every 10s</div>
-    <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">Weather Refresher</div>
-    <div style="display:flex;justify-content:center;margin:3px 0;"><svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg></div>
-    <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">SPOP cells_to_fetch<span style="display:block;font-size:11px;color:#888;margin-top:2px;">up to 50 at a time</span></div>
-    <div style="display:flex;justify-content:center;margin:3px 0;"><svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg></div>
-    <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">Cell ID → lat/lng</div>
-    <div style="display:flex;justify-content:center;margin:3px 0;"><svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg></div>
-    <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">Call Weather API<span style="display:block;font-size:11px;color:#888;margin-top:2px;">slow, ~seconds</span></div>
-    <div style="display:flex;justify-content:center;margin:3px 0;"><svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg></div>
-    <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">Update Redis Cache<span style="display:block;font-size:11px;color:#888;margin-top:2px;">key + TTL</span></div>
-  </div>
-
 </div>
 
-## Takeaways
-- Move heavy math offline
-- Remove uncontrollable latency from the hot path
-- Decouple with background workers
+## Trade-offs
+
+**First-request misses are unavoidable.** The first request from any new H3 cell always misses the weather cache. That request goes upstream without weather data. This is intentional: the alternative is blocking the hot path on the API, which is worse. In practice, popular regions warm up quickly, and traffic naturally clusters geographically.
+
+**Weather data is eventually consistent.** There is a window between when a cell's cache expires and when the refresher fetches new data. During that window, requests miss and go upstream without weather. The 30-60 minute TTL is calibrated to the weather provider's update frequency. Reducing the TTL increases freshness but increases API costs and miss rates.
+
+**The H3 boundary has some imprecision.** A point near the edge of a target region may fall in a cell that straddles the boundary. At resolution 5, the maximum error is about 8.5 km. For weather targeting, this is acceptable. Campaign targeting at that precision is not meaningful.
+
+## Key Takeaways
+
+1. **Move heavy computation offline.** Ray casting is correct but expensive and unpredictable. Precomputing the H3 cell set at build time reduces the hot path to a single integer lookup.
+2. **Remove uncontrollable latency from the hot path.** Anything that calls an external system at request time will eventually blow your budget. The background refresher owns the slow work; the request handler only reads from cache.
+3. **Use data structures that match the access pattern.** `SADD` into a Redis Set gives deduplication for free. `map[uint64]bool` gives O(1) lookup with no branching. Choose the right tool for each layer.
