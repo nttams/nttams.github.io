@@ -1,7 +1,7 @@
 # Portfolio
 
 Hey!  
-I'm Tam, an associate technical manager/senior software engineer with 5+ years of experience building low-latency, real-time systems in the AdTech industry
+I'm Tam, an associate technical lead/senior software engineer with 5+ years of experience building low-latency, real-time systems in the AdTech industry
 
 ## Featured Work
 
