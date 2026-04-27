@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Reverse Parking Simulator</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #1a1a2e;
+      font-family: 'Segoe UI', sans-serif;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+      color: #eee;
+    }
+
+    #hud {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 16px;
+      background: #16213e;
+      border-bottom: 2px solid #0f3460;
+      flex-shrink: 0;
+    }
+
+    #hud h1 {
+      font-size: 1rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      color: #e94560;
+      margin-right: 8px;
+    }
+
+    #controls-hint {
+      font-size: 0.75rem;
+      color: #666;
+    }
+
+    #reset-btn {
+      padding: 6px 16px;
+      border-radius: 6px;
+      border: 2px solid #53d8fb;
+      background: transparent;
+      color: #53d8fb;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-left: auto;
+      transition: all 0.15s;
+    }
+    #reset-btn:hover { background: #53d8fb; color: #16213e; }
+
+    #canvas-wrap {
+      position: relative;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+  </style>
+</head>
+<body>
+
+<div id="hud">
+  <h1>🚗 Parking Sim</h1>
+  <span id="controls-hint">↑↓ accelerate · ←→ steer</span>
+  <button id="reset-btn">Reset</button>
+</div>
+
+<div id="canvas-wrap">
+  <canvas id="c"></canvas>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+//  CONSTANTS
+// ═══════════════════════════════════════════════════════════════════
+// Car dimensions are recomputed in buildScenario() to scale with canvas.
+let CAR_W = 28, CAR_L = 54, WB = 34;
+
+const MAX_STEER  = 38 * Math.PI / 180;
+const STEER_RATE = 0.4 * Math.PI / 180;
+const MAX_SPD    = 3.2;
+const ACCEL      = 0.13;
+const FRICTION   = 0.91;
+
+// ═══════════════════════════════════════════════════════════════════
+//  DOM
+// ═══════════════════════════════════════════════════════════════════
+const canvas = document.getElementById('c');
+const ctx    = canvas.getContext('2d');
+const wrap   = document.getElementById('canvas-wrap');
+
+function resizeCanvas() {
+  canvas.width  = wrap.clientWidth;
+  canvas.height = wrap.clientHeight;
+}
+window.addEventListener('resize', () => { resizeCanvas(); buildScenario(); });
+resizeCanvas();
+
+// ═══════════════════════════════════════════════════════════════════
+//  INPUT
+// ═══════════════════════════════════════════════════════════════════
+const keys = { up: false, down: false, left: false, right: false };
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowUp')    { keys.up    = true; e.preventDefault(); }
+  if (e.key === 'ArrowDown')  { keys.down  = true; e.preventDefault(); }
+  if (e.key === 'ArrowLeft')  { keys.left  = true; e.preventDefault(); }
+  if (e.key === 'ArrowRight') { keys.right = true; e.preventDefault(); }
+});
+document.addEventListener('keyup', e => {
+  if (e.key === 'ArrowUp')    keys.up    = false;
+  if (e.key === 'ArrowDown')  keys.down  = false;
+  if (e.key === 'ArrowLeft')  keys.left  = false;
+  if (e.key === 'ArrowRight') keys.right = false;
+});
+
+// ═══════════════════════════════════════════════════════════════════
+//  CAR STATE  — rear-axle midpoint is the canonical position
+// ═══════════════════════════════════════════════════════════════════
+let car     = { x: 0, y: 0, heading: 0, speed: 0, steer: 0 };
+let prevCar = { ...car };
+let spawnX = 0, spawnY = 0, spawnHeading = 0;
+
+function resetCar() {
+  car     = { x: spawnX, y: spawnY, heading: spawnHeading, speed: 0, steer: 0 };
+  prevCar = { ...car };
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  SCENARIO DATA
+// ═══════════════════════════════════════════════════════════════════
+// Each target zone: { x, y, w, h, label }  — axis-aligned AABB
+let targets   = [];
+let obstacles = [];   // static cars: { x, y, w, h, angle, color }
+let walls     = [];   // solid rects: { x, y, w, h }
+let roadStripes = [];
+
+// Layout geometry shared between build and draw
+let roadTop = 0, roadBottom = 0;
+// Parallel parking curb Y (needed for drawing)
+let curbY = 0;
+// Vertical bay area bounds (for drawing the tarmac)
+let bayAreaTop = 0, bayAreaH = 0;
+
+// ─────────────────────────────────────────────────────────────────
+function buildScenario() {
+  const W = canvas.width, H = canvas.height;
+
+  // Scale car so it always looks proportional to the road.
+  CAR_L   = Math.round(Math.min(W, H) * 0.10);
+  CAR_W   = Math.round(CAR_L * 0.52);
+  WB      = Math.round(CAR_L * 0.63);
+  targets     = [];
+  obstacles   = [];
+  walls       = [];
+  roadStripes = [];
+
+  // Road is a horizontal band in the vertical centre of the canvas.
+  // 4 lanes = ~6.4 car-widths (2 lanes each direction)
+  const roadH = Math.round(CAR_W * 6.4);
+  roadTop    = Math.round(H * 0.30);
+  roadBottom = roadTop + roadH;
+
+  // ── Top area: PARALLEL PARKING (above the road) ──────────────────
+  // Parked cars sit flush against the top edge of the road, leaving a
+  // gap in the middle that the player must reverse into.
+  curbY = roadTop; // parallel curb == top edge of road
+
+  const gapW   = CAR_L + Math.round(CAR_L * 0.6); // generous gap
+  const gapX   = (W - gapW) / 2;
+  const parY   = roadTop - Math.round(CAR_W * 0.5); // parked-car centre y
+
+  // Target zone for parallel park
+  const tzH = Math.round(CAR_W * 1.1);
+  targets.push({
+    x: gapX + 4,
+    y: roadTop - tzH,
+    w: gapW - 8,
+    h: tzH,
+    label: 'PARALLEL',
+  });
+
+
+  // Solid top wall (above parked cars)
+  walls.push({ x: W / 2, y: roadTop - CAR_W - 16, w: W, h: 10 });
+
+  // ── Bottom area: VERTICAL PARKING (below the road) ───────────────
+  // Three bays; the centre one is the target.  Flanking bays have
+  // parked cars.
+  const bayW  = Math.round(CAR_W * 1.6);
+  const bayH  = Math.round(CAR_L * 1.35);
+  bayAreaTop  = roadBottom;
+  bayAreaH    = bayH + 10;
+
+  // Centre the cluster of 3 bays
+  const clusterW = bayW * 3;
+  const bayStartX = (W - clusterW) / 2;
+
+  for (let i = 0; i < 3; i++) {
+    const bx = bayStartX + i * bayW;
+    const cx = bx + bayW / 2;
+    const cy = roadBottom + bayH / 2;
+
+    if (i === 1) {
+      // Middle bay → target zone
+      targets.push({
+        x: bx + 4,
+        y: roadBottom + 4,
+        w: bayW - 8,
+        h: bayH - 8,
+        label: 'VERTICAL',
+      });
+    }
+  }
+
+  // Bottom wall
+  walls.push({ x: W / 2, y: roadBottom + bayH + 8, w: W, h: 10 });
+
+  // ── Spawn: centre of road, facing right ──────────────────────────
+  spawnX       = W * 0.15;
+  spawnY       = roadTop + roadH / 2;
+  spawnHeading = 0;
+  resetCar();
+
+  // 3 lane-divider dash rows for 4 lanes
+  const laneH = roadH / 4;
+  for (let lane = 1; lane <= 3; lane++) {
+    const dashY = roadTop + laneH * lane - 3;
+    for (let sx = 40; sx < W; sx += 90) {
+      roadStripes.push({ x: sx, y: dashY, w: 50, h: 6 });
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  BICYCLE MODEL PHYSICS
+// ═══════════════════════════════════════════════════════════════════
+// r = L / tan(δ)   — turning radius from rear axle
+// ω = v / r        — angular velocity (rad/frame)
+// heading += ω
+// x += v·cos(heading),  y += v·sin(heading)
+
+function updatePhysics() {
+  if (keys.left)  car.steer = Math.max(car.steer - STEER_RATE, -MAX_STEER);
+  if (keys.right) car.steer = Math.min(car.steer + STEER_RATE,  MAX_STEER);
+
+  if (keys.up)   car.speed = Math.min(car.speed + ACCEL,  MAX_SPD);
+  if (keys.down) car.speed = Math.max(car.speed - ACCEL, -MAX_SPD);
+
+  car.speed *= FRICTION;
+  if (Math.abs(car.speed) < 0.01) car.speed = 0;
+
+  prevCar = { ...car };
+
+  if (Math.abs(car.steer) < 0.001) {
+    // Straight-line: no rotation
+    car.x += car.speed * Math.cos(car.heading);
+    car.y += car.speed * Math.sin(car.heading);
+  } else {
+    // Turning radius from rear axle: r = L / tan(δ)
+    const r     = WB / Math.tan(car.steer);
+    const omega = car.speed / r;  // angular velocity ω = v / r
+    car.heading += omega;
+    car.x += car.speed * Math.cos(car.heading);
+    car.y += car.speed * Math.sin(car.heading);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  OBB HELPERS — Separating Axis Theorem
+// ═══════════════════════════════════════════════════════════════════
+// Returns 4 world-space corners of an oriented rect { x,y,w,h,angle }.
+function rectCorners(rect) {
+  const hw = rect.w / 2, hh = rect.h / 2;
+  const c  = Math.cos(rect.angle), s = Math.sin(rect.angle);
+  return [[-hw,-hh],[hw,-hh],[hw,hh],[-hw,hh]].map(([lx,ly]) => [
+    rect.x + lx*c - ly*s,
+    rect.y + lx*s + ly*c,
+  ]);
+}
+
+function projectOntoAxis(corners, ax, ay) {
+  let mn = Infinity, mx = -Infinity;
+  for (const [cx,cy] of corners) {
+    const d = cx*ax + cy*ay;
+    if (d < mn) mn = d;
+    if (d > mx) mx = d;
+  }
+  return [mn, mx];
+}
+
+function obbOverlap(a, b) {
+  const cA = rectCorners(a), cB = rectCorners(b);
+  const axes = [
+    [ Math.cos(a.angle),  Math.sin(a.angle)],
+    [-Math.sin(a.angle),  Math.cos(a.angle)],
+    [ Math.cos(b.angle),  Math.sin(b.angle)],
+    [-Math.sin(b.angle),  Math.cos(b.angle)],
+  ];
+  for (const [ax,ay] of axes) {
+    const [mnA,mxA] = projectOntoAxis(cA, ax, ay);
+    const [mnB,mxB] = projectOntoAxis(cB, ax, ay);
+    if (mxA < mnB || mxB < mnA) return false;
+  }
+  return true;
+}
+
+// Oriented rect for the player car (body centre = rear axle + half length ahead).
+function playerRect() {
+  const half = CAR_L / 2;
+  return {
+    x:     car.x + Math.cos(car.heading) * half,
+    y:     car.y + Math.sin(car.heading) * half,
+    w:     CAR_W,
+    h:     CAR_L,
+    angle: car.heading + Math.PI / 2,
+  };
+}
+
+function checkCollisions() {
+  const pr = playerRect();
+  const statics = [
+    ...obstacles.map(o => ({ x:o.x, y:o.y, w:o.w, h:o.h, angle:o.angle })),
+    ...walls.map(w    => ({ x:w.x, y:w.y, w:w.w, h:w.h, angle:0 })),
+  ];
+  for (const s of statics) {
+    if (obbOverlap(pr, s)) {
+      car.x       = prevCar.x;
+      car.y       = prevCar.y;
+      car.heading = prevCar.heading;
+      car.speed   = 0;
+      return;
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  PARKING PERCENTAGE — Sutherland-Hodgman polygon clip
+// ═══════════════════════════════════════════════════════════════════
+// Clips the player car polygon against each edge of the (axis-aligned)
+// target zone, then computes the clipped area / car area → 0..100 %.
+
+function clipPolygonByHalfPlane(poly, ax, ay, c) {
+  // Keep points where ax*x + ay*y <= c  (inside the half-plane)
+  const out = [];
+  for (let i = 0; i < poly.length; i++) {
+    const curr = poly[i], next = poly[(i + 1) % poly.length];
+    const dCurr = ax*curr[0] + ay*curr[1] - c;
+    const dNext = ax*next[0] + ay*next[1] - c;
+    if (dCurr <= 0) out.push(curr);
+    if ((dCurr < 0) !== (dNext < 0)) {
+      // Intersection point
+      const t = dCurr / (dCurr - dNext);
+      out.push([curr[0] + t*(next[0]-curr[0]), curr[1] + t*(next[1]-curr[1])]);
+    }
+  }
+  return out;
+}
+
+function polygonArea(poly) {
+  let area = 0;
+  for (let i = 0; i < poly.length; i++) {
+    const [x1,y1] = poly[i], [x2,y2] = poly[(i+1) % poly.length];
+    area += x1*y2 - x2*y1;
+  }
+  return Math.abs(area) / 2;
+}
+
+function parkingPercent(target) {
+  let poly = rectCorners(playerRect());
+
+  // Clip against each of the 4 AABB edges of the target zone:
+  //   left:   x >= t.x      →  -x <= -t.x
+  //   right:  x <= t.x+t.w
+  //   top:    y >= t.y      →  -y <= -t.y
+  //   bottom: y <= t.y+t.h
+  poly = clipPolygonByHalfPlane(poly, -1,  0, -target.x);
+  if (!poly.length) return 0;
+  poly = clipPolygonByHalfPlane(poly,  1,  0,  target.x + target.w);
+  if (!poly.length) return 0;
+  poly = clipPolygonByHalfPlane(poly,  0, -1, -target.y);
+  if (!poly.length) return 0;
+  poly = clipPolygonByHalfPlane(poly,  0,  1,  target.y + target.h);
+  if (!poly.length) return 0;
+
+  const overlap  = polygonArea(poly);
+  const carArea  = CAR_W * CAR_L;
+  return Math.min(100, Math.round((overlap / carArea) * 100));
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  RENDERING
+// ═══════════════════════════════════════════════════════════════════
+function drawScene() {
+  const W = canvas.width, H = canvas.height;
+
+  // Background grass
+  ctx.fillStyle = '#2d5a1b';
+  ctx.fillRect(0, 0, W, H);
+
+  // ── Parking lot tarmac (bottom area) ──
+  ctx.fillStyle = '#444';
+  ctx.fillRect(0, bayAreaTop, W, bayAreaH + 10);
+
+  // Bay dividing lines
+  const bayW      = Math.round(CAR_W * 1.6);
+  const bayH      = Math.round(CAR_L * 1.35);
+  const clusterW  = bayW * 3;
+  const bayStartX = (W - clusterW) / 2;
+  ctx.strokeStyle = '#777';
+  ctx.lineWidth   = 1.5;
+  for (let i = 0; i <= 3; i++) {
+    const bx = bayStartX + i * bayW;
+    ctx.beginPath();
+    ctx.moveTo(bx, roadBottom);
+    ctx.lineTo(bx, roadBottom + bayH);
+    ctx.stroke();
+  }
+
+  // ── Pavement above road (parallel area) ──
+  const pavH = Math.round(CAR_W * 1.8);
+  ctx.fillStyle = '#555';
+  ctx.fillRect(0, roadTop - pavH, W, pavH);
+
+  // Kerb stripe
+  const kerbH = 8;
+  ctx.fillStyle = '#888';
+  ctx.fillRect(0, roadTop - kerbH, W, kerbH);
+  ctx.fillStyle = '#ddd';
+  for (let kx = 0; kx < W; kx += 28) {
+    ctx.fillRect(kx, roadTop - kerbH, 14, kerbH);
+  }
+
+  // ── Road surface ──
+  ctx.fillStyle = '#606060';
+  ctx.fillRect(0, roadTop, W, roadBottom - roadTop);
+
+  // Road edge lines
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth   = 3;
+  ctx.beginPath();
+  ctx.moveTo(0, roadTop);    ctx.lineTo(W, roadTop);
+  ctx.moveTo(0, roadBottom); ctx.lineTo(W, roadBottom);
+  ctx.stroke();
+
+  // Lane centre dashes
+  ctx.fillStyle = '#ffff88';
+  for (const s of roadStripes) ctx.fillRect(s.x, s.y, s.w, s.h);
+
+  // ── Target zones + collect percentages for the side panel ──
+  const percents = [];
+  for (const t of targets) {
+    const pct = parkingPercent(t);
+    percents.push({ pct, label: t.label });
+
+    const green = Math.round((pct / 100) * 230);
+    const zoneColor = `rgb(${230 - green}, ${green}, 80)`;
+
+    ctx.save();
+    ctx.globalAlpha = 0.30;
+    ctx.fillStyle   = zoneColor;
+    ctx.fillRect(t.x, t.y, t.w, t.h);
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = zoneColor;
+    ctx.lineWidth   = 2;
+    ctx.setLineDash([6, 4]);
+    ctx.strokeRect(t.x, t.y, t.w, t.h);
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
+
+  // ── Right-side HUD panel (always clear of obstacles) ──
+  drawParkingPanel(percents);
+
+  // ── Walls ──
+  ctx.fillStyle = '#2a2a2a';
+  for (const w of walls) ctx.fillRect(w.x - w.w/2, w.y - 5, w.w, 10);
+
+  // ── Player car ──
+  const bodyCX    = car.x + Math.cos(car.heading) * CAR_L / 2;
+  const bodyCY    = car.y + Math.sin(car.heading) * CAR_L / 2;
+  const bodyAngle = car.heading + Math.PI / 2;
+  drawCar(bodyCX, bodyCY, CAR_W, CAR_L, bodyAngle, '#f1c40f', true);
+
+  // ── Steering indicator ──
+  drawSteeringIndicator();
+}
+
+// ─── Fixed right-side panel showing one badge per parking zone ───────
+// Drawn last so it's always on top and never overlaps any game objects.
+function drawParkingPanel(percents) {
+  const r       = Math.max(22, Math.round(CAR_W * 0.75));
+  const padX    = 14;
+  const padY    = 14;
+  const itemH   = r * 2 + 36;   // circle + label + gap
+  const panelW  = r * 2 + padX * 2;
+  const panelH  = itemH * percents.length + padY * 2 - 10;
+  const px      = canvas.width - panelW - 10;
+  const py      = (canvas.height - panelH) / 2;
+
+  // Panel background
+  ctx.save();
+  ctx.fillStyle = 'rgba(0,0,0,0.55)';
+  ctx.beginPath();
+  ctx.roundRect(px, py, panelW, panelH, 10);
+  ctx.fill();
+
+  for (let i = 0; i < percents.length; i++) {
+    const { pct, label } = percents[i];
+    const cx = px + panelW / 2;
+    const cy = py + padY + r + i * itemH;
+
+    // Track ring
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth   = 5;
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+
+    // Progress arc — red→green
+    const green = Math.round((pct / 100) * 200);
+    ctx.strokeStyle = `rgb(${200 - green}, ${55 + green}, 80)`;
+    ctx.lineWidth   = 5;
+    ctx.lineCap     = 'round';
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + (pct / 100) * Math.PI * 2);
+    ctx.stroke();
+    ctx.lineCap = 'butt';
+
+    // Percentage text
+    ctx.fillStyle    = '#fff';
+    ctx.font         = `bold ${Math.max(11, r - 6)}px sans-serif`;
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`${pct}%`, cx, cy);
+
+    // Label below circle
+    ctx.fillStyle    = '#aaa';
+    ctx.font         = `${Math.max(9, r - 11)}px sans-serif`;
+    ctx.textBaseline = 'top';
+    ctx.fillText(label, cx, cy + r + 5);
+  }
+
+  ctx.textBaseline = 'alphabetic';
+  ctx.restore();
+}
+
+// ─── Generic car renderer ─────────────────────────────────────────
+// angle: car body orientation (car's "up" = front of car at negative y in local space)
+function drawCar(cx, cy, w, h, angle, color, isPlayer) {
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(angle);
+
+  const hw = w / 2, hh = h / 2;
+  const ww = w * 0.28;          // wheel width (along car axis)
+  const wl = w * 0.14;          // wheel thickness (across car)
+  const axleF = -hh + h * 0.22; // front axle local y
+  const axleR =  hh - h * 0.22; // rear axle local y
+  const wx    = hw - wl * 0.4;  // wheel x: flush inside body edge
+
+  const steer = isPlayer ? car.steer : 0;
+
+  // Rear wheels (always straight)
+  drawWheel(-wx, axleR, wl, ww, 0);
+  drawWheel( wx, axleR, wl, ww, 0);
+
+  // Shadow
+  ctx.save();
+  ctx.translate(3, 5);
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.beginPath();
+  ctx.roundRect(-hw, -hh, w, h, 5);
+  ctx.fill();
+  ctx.restore();
+
+  // Body
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.roundRect(-hw, -hh, w, h, 5);
+  ctx.fill();
+  ctx.strokeStyle = darkenColor(color, 0.4);
+  ctx.lineWidth   = 1.5;
+  ctx.stroke();
+
+  // Cabin (inset rectangle covering middle ~40% of length)
+  const cabinTop    = -hh + h * 0.28;
+  const cabinBot    =  hh - h * 0.32;
+  const cabinInset  = hw * 0.15;
+  const cabinW      = w - cabinInset * 2;
+  const cabinH      = cabinBot - cabinTop;
+  ctx.fillStyle = darkenColor(color, 0.15);
+  ctx.beginPath();
+  ctx.roundRect(-hw + cabinInset, cabinTop, cabinW, cabinH, 3);
+  ctx.fill();
+
+  // Windshield
+  ctx.fillStyle = 'rgba(160,220,255,0.6)';
+  ctx.beginPath();
+  ctx.roundRect(-hw + cabinInset + 1, cabinTop + 1, cabinW - 2, cabinH * 0.45, 3);
+  ctx.fill();
+
+  // Rear window
+  ctx.fillStyle = 'rgba(120,190,240,0.45)';
+  ctx.beginPath();
+  ctx.roundRect(-hw + cabinInset + 1, cabinBot - cabinH * 0.35, cabinW - 2, cabinH * 0.32, 3);
+  ctx.fill();
+
+  // Headlights — thin strip across front bumper
+  ctx.fillStyle = 'rgba(255,255,210,0.95)';
+  ctx.beginPath();
+  ctx.roundRect(-hw + 4, -hh + 2, w - 8, 4, 2);
+  ctx.fill();
+
+  // Tail lights — thin red strip across rear bumper
+  ctx.fillStyle = '#e74c3c';
+  ctx.beginPath();
+  ctx.roundRect(-hw + 4, hh - 6, w - 8, 4, 2);
+  ctx.fill();
+
+  // Front wheels (turn with steering)
+  drawWheel(-wx, axleF, wl, ww, steer);
+  drawWheel( wx, axleF, wl, ww, steer);
+
+  ctx.restore();
+}
+
+function lightenColor(hex, amt) {
+  return shiftColor(hex, amt);
+}
+function darkenColor(hex, amt) {
+  return shiftColor(hex, -amt);
+}
+function shiftColor(hex, amt) {
+  // works for #rrggbb and css named fallback
+  let c = hex;
+  if (c[0] === '#') {
+    let r = parseInt(c.slice(1,3),16);
+    let g = parseInt(c.slice(3,5),16);
+    let b = parseInt(c.slice(5,7),16);
+    r = Math.max(0, Math.min(255, Math.round(r + 255 * amt)));
+    g = Math.max(0, Math.min(255, Math.round(g + 255 * amt)));
+    b = Math.max(0, Math.min(255, Math.round(b + 255 * amt)));
+    return `rgb(${r},${g},${b})`;
+  }
+  return c;
+}
+
+function drawWheel(lx, ly, ww, wh, steerAngle) {
+  ctx.save();
+  ctx.translate(lx, ly);
+  ctx.rotate(steerAngle);
+  ctx.fillStyle = '#1a1a1a';
+  ctx.beginPath();
+  ctx.roundRect(-ww / 2, -wh / 2, ww, wh, 1.5);
+  ctx.fill();
+  // subtle tread highlight
+  ctx.fillStyle = 'rgba(255,255,255,0.12)';
+  ctx.fillRect(-ww / 2 + 1, -wh / 2 + 1, ww - 2, wh * 0.3);
+  ctx.restore();
+}
+
+function drawSteeringIndicator() {
+  const r = 26, ix = 60, iy = canvas.height - 60;
+  ctx.save();
+  ctx.translate(ix, iy);
+  ctx.fillStyle = 'rgba(0,0,0,0.45)';
+  ctx.beginPath(); ctx.arc(0, 0, r+4, 0, Math.PI*2); ctx.fill();
+  ctx.strokeStyle = '#aaa'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI*2); ctx.stroke();
+  ctx.strokeStyle = '#f1c40f'; ctx.lineWidth = 3;
+  ctx.rotate(car.steer * 3);
+  ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -r+4); ctx.stroke();
+  ctx.restore();
+
+  // Degree readout below the wheel
+  const deg = Math.round(car.steer * 180 / Math.PI);
+  ctx.fillStyle    = deg === 0 ? '#00e676' : '#f1c40f';
+  ctx.font         = `bold ${Math.max(10, r - 10)}px monospace`;
+  ctx.textAlign    = 'center';
+  ctx.textBaseline = 'top';
+  ctx.fillText(`${deg > 0 ? '+' : ''}${deg}°`, ix, iy + r + 6);
+  ctx.textBaseline = 'alphabetic';
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  GAME LOOP
+// ═══════════════════════════════════════════════════════════════════
+function loop() {
+  updatePhysics();
+  checkCollisions();
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  drawScene();
+  requestAnimationFrame(loop);
+}
+
+document.getElementById('reset-btn').addEventListener('click', resetCar);
+
+buildScenario();
+loop();
+</script>
+</body>
+</html>
