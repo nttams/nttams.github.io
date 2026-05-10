@@ -8,4 +8,5 @@
 - [We must discard unread body in golang](./we-must-discard-unread-body-in-golang.md)
 - [A simple task scheduling system](./distributed-task-scheduling.md)
 - [Matrix-based filtering](./matrix-based-filtering.md)
+- [Mapping country boundaries to H3 hexagonal grids](./geodata.md)
 - [Car simulator](./car-sim.md)
