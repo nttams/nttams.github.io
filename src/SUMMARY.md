@@ -9,4 +9,5 @@
 - [A simple task scheduling system](./distributed-task-scheduling.md)
 - [Matrix-based filtering](./matrix-based-filtering.md)
 - [Mapping country boundaries to H3 hexagonal grids](./geodata.md)
+- [Visualizing geospatial CSV data with geoplot](./geoplot.md)
 - [Car simulator](./car-sim.md)
