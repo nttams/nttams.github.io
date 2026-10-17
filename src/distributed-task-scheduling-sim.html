@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Task Scheduling Simulator</title>
+<style>
+  :root {
+    --bg:#fafafa; --panel:#fff; --ink:#2d2d2d; --muted:#888; --line:#d8d8d8;
+    --node:#f5f5f5; --node-b:#c0c0c0; --dec:#e8e8e8; --dec-b:#aaa;
+    --hit:#2f9e6b; --miss:#e0802b; --skip:#a3a3a3; --accent:#3b6fd8; --fly:#8a63d2;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg:#1c1d21; --panel:#24262b; --ink:#e4e4e4; --muted:#9a9a9a; --line:#3a3c42;
+      --node:#2c2e34; --node-b:#4f525a; --dec:#34373e; --dec-b:#666a74;
+      --hit:#4cc38a; --miss:#f0954a; --skip:#7a7a7a; --accent:#6b95ef; --fly:#a68bec;
+    }
+  }
+  *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--ink); font-family:system-ui,sans-serif; font-size:13px; padding:12px; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:12px 14px; margin-bottom:12px; }
+  .lane-t { font-size:10px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:8px; }
+
+  /* controls */
+  .bar { display:flex; flex-wrap:wrap; gap:10px 18px; align-items:center; }
+  .bar h1 { font-size:14px; font-weight:700; margin-right:auto; }
+  .grp { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--muted); }
+  .grp input[type=range] { width:84px; accent-color:var(--accent); }
+  .grp output { color:var(--ink); min-width:30px; font-variant-numeric:tabular-nums; }
+  button, select { font:inherit; font-size:12px; color:var(--ink); background:var(--node); border:1px solid var(--node-b); border-radius:5px; padding:4px 10px; cursor:pointer; }
+  button:hover { border-color:var(--accent); }
+  button.warn:hover { border-color:var(--miss); }
+
+  /* flow svg */
+  .scroll { overflow-x:auto; }
+  svg#flow { display:block; width:100%; min-width:560px; height:auto; }
+  .n rect { fill:var(--node); stroke:var(--node-b); stroke-width:1.5; transition:stroke .1s; }
+  .n.d rect { fill:var(--dec); stroke:var(--dec-b); }
+  .n.on rect { stroke:var(--accent); stroke-width:2; }
+  .n.dead rect { stroke:var(--miss); stroke-width:2; }
+  .n.off { opacity:.35; }
+  .n.off rect { stroke-dasharray:4 3; }
+  .n .t { font-size:12px; fill:var(--ink); text-anchor:middle; }
+  .n .s { font-size:9.5px; fill:var(--muted); text-anchor:middle; }
+  .n .bar-bg { fill:var(--line); stroke:none; }
+  .n .bar-fg { fill:var(--accent); stroke:none; }
+  .ln { fill:none; stroke:var(--node-b); stroke-width:1.5; }
+  .ln.dim { opacity:.25; }
+  .ln.on { stroke:var(--accent); }
+  .lbl { font-size:9.5px; fill:var(--muted); }
+  .lane { fill:none; stroke:var(--line); }
+  .lane-txt { font-size:9px; font-weight:700; fill:var(--muted); letter-spacing:1px; }
+  .tok-t { font-size:8px; font-weight:700; fill:#fff; text-anchor:middle; dominant-baseline:central; pointer-events:none; }
+
+  /* collection */
+  .docs { display:grid; grid-template-columns:repeat(auto-fill,minmax(88px,1fr)); gap:6px; min-height:132px; align-content:start; }
+  .doc { border:1.5px solid var(--skip); border-radius:5px; padding:3px 6px; background:var(--node); font-family:ui-monospace,Menlo,monospace; font-size:10.5px; line-height:1.35; }
+  .doc small { display:block; font-size:9.5px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .doc.working { border-color:var(--accent); }
+  .doc.done { border-color:var(--hit); }
+  .doc.over { border-color:var(--miss); border-style:dashed; }
+  .doc.more { border-style:dotted; color:var(--muted); display:flex; align-items:center; justify-content:center; }
+  .legend { display:flex; flex-wrap:wrap; gap:4px 14px; margin-top:8px; font-size:11px; color:var(--muted); }
+  .sw { display:inline-block; width:10px; height:10px; border-radius:2px; vertical-align:-1px; margin-right:4px; border:1.5px solid; }
+
+  /* stats */
+  .tiles { display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:8px; }
+  .tile { border:1px solid var(--line); border-radius:6px; padding:7px 10px; }
+  .tile .k { font-size:10.5px; color:var(--muted); }
+  .tile .v { font-size:17px; font-weight:600; font-variant-numeric:tabular-nums; margin-top:2px; }
+  .tile .v small { font-size:11px; font-weight:400; color:var(--muted); }
+  .good { color:var(--hit); } .bad { color:var(--miss); }
+  #detail { margin-top:10px; font-size:12px; line-height:1.5; min-height:38px; font-family:ui-monospace,Menlo,monospace; color:var(--muted); }
+  #detail b { color:var(--ink); font-weight:600; }
+</style>
+</head>
+<body>
+
+<div class="card bar">
+  <h1>Distributed Task Scheduling</h1>
+  <div class="grp"><button id="play">Pause</button>
+    <select id="speed"><option value="1" selected>1x</option><option value="2">2x</option><option value="4">4x</option><option value="8">8x</option></select></div>
+  <div class="grp">Workers <button id="wdec" aria-label="Remove worker">-</button><output id="wO"></output><button id="winc" aria-label="Add worker">+</button></div>
+  <div class="grp">Arrival <input type="range" id="rate" min="1" max="20" value="3"><output id="rateO"></output></div>
+  <div class="grp"><button id="kill" class="warn" title="Kill a busy worker. Its task stays working until the handler sees it is overdue.">Kill a worker</button>
+    <button id="race" title="Make every idle worker try to claim the same pending task at once.">Race for one task</button></div>
+</div>
+
+<div class="card">
+  <div class="scroll"><svg id="flow" viewBox="0 0 1000 345"></svg></div>
+</div>
+
+<div class="card">
+  <div class="lane-t">MongoDB collection: tasks</div>
+  <div class="docs" id="docs"></div>
+  <div class="legend">
+    <span><i class="sw" style="border-color:var(--skip)"></i>pending</span>
+    <span><i class="sw" style="border-color:var(--accent)"></i>working</span>
+    <span><i class="sw" style="border-color:var(--hit)"></i>done</span>
+    <span><i class="sw" style="border-color:var(--miss);border-style:dashed"></i>overdue (15 min)</span>
+    <span>Modeled: task time is 2s to 10 min (mostly short), 1 real second is 40 simulated seconds.</span>
+  </div>
+</div>
+
+<div class="card">
+  <div class="tiles" id="tiles"></div>
+  <div id="detail">Waiting for the first event...</div>
+</div>
+
+<script>
+// ═════════════════════════ config ═════════════════════════
+const TS = 40;             // simulated seconds per real second at 1x (modeled)
+const TOK = 320;           // svg units per real second at 1x
+const OVERDUE = 900;       // 15 minutes
+const SCAN = 30;           // handler scan interval, sim seconds
+const MAXW = 8;
+const CY = 170, INS = 162, RD = 178;
+
+let speed = 1, paused = false, rate = 3;
+let sim = 0, rt = 0, nextScan = SCAN, arrAcc = 0, nid = 0;
+
+const $ = s => document.querySelector(s);
+const fmt = n => n.toLocaleString('en-US');
+const fmtT = s => { s = Math.max(0, Math.round(s)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+const rand = (a, b) => a + Math.random() * (b - a);
+
+// ═════════════════════════ state ═════════════════════════
+const docs = new Map();    // id -> {id,status,dur,born,claimedAt,worker,tries,shipping,resetting}
+const st = { arrived: 0, executed: 0, shipped: 0, retries: 0, races: 0 };
+const doneTimes = [];
+const W = [];              // worker slots
+for (let i = 0; i < MAXW; i++) W.push({ i, state: i < 3 ? 'idle' : 'off', doc: null, rem: 0, total: 0, busy: false, leaving: false, nextPoll: rand(2, 20) });
+
+const sampleDur = () => Math.exp(rand(Math.log(2), Math.log(600)));
+function mkDoc() {
+  const id = 't-' + String(++nid).padStart(3, '0');
+  return { id, status: 'pending', dur: sampleDur(), born: sim, claimedAt: 0, worker: null, tries: 0 };
+}
+function insertDoc(d) { docs.set(d.id, d); st.arrived++; }
+const oldestPending = () => { for (const d of docs.values()) if (d.status === 'pending') return d; return null; };
+const live = () => W.filter(w => w.state === 'idle' || w.state === 'working');
+
+// ═════════════════════════ flow svg ═════════════════════════
+const svg = $('#flow'), NS = 'http://www.w3.org/2000/svg';
+function el(tag, attrs, parent = svg) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  parent.appendChild(e); return e;
+}
+const defs = el('defs', {});
+const mk = el('marker', { id: 'ah', viewBox: '0 0 10 10', refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: 'auto-start-reverse' }, defs);
+el('path', { d: 'M0,0 L10,5 L0,10 z', style: 'fill:var(--node-b)' }, mk);
+const gLane = el('g', {}), gLine = el('g', {}), gNode = el('g', {}), gTok = el('g', {});
+
+el('rect', { class: 'lane', x: 736, y: 4, width: 258, height: 337, rx: 8 }, gLane);
+el('text', { class: 'lane-txt', x: 748, y: 18 }, gLane).textContent = 'WORKERS';
+
+const wy = i => 44 + i * 38;
+const N = {
+  X: { x: 62,  y: CY, w: 116, t: 'External Service', s: '' },
+  H: { x: 240, y: CY, w: 120, t: 'Task Handler', s: '', d: 1 },
+  M: { x: 520, y: CY, w: 160, h: 70, t: 'MongoDB', s: '', d: 1 },
+};
+for (let i = 0; i < MAXW; i++) N['w' + i] = { x: 830, y: wy(i), w: 160, h: 34, t: 'Worker ' + (i + 1), s: '', wk: i };
+
+const LINKS = {
+  new:  [[120, INS], [180, INS]],
+  res:  [[180, RD], [120, RD]],
+  ins:  [[300, INS], [440, INS]],
+  read: [[440, RD], [300, RD]],
+};
+for (let i = 0; i < MAXW; i++) {
+  LINKS['c' + i] = [[600, INS], [635, INS], [635, wy(i) - 5], [750, wy(i) - 5]];
+  LINKS['s' + i] = [[750, wy(i) + 5], [660, wy(i) + 5], [660, RD], [600, RD]];
+}
+const linkEl = {}, linkLast = {};
+for (const [id, pts] of Object.entries(LINKS)) {
+  linkEl[id] = el('polyline', { class: 'ln', points: pts.join(' '), 'marker-end': 'url(#ah)' }, gLine);
+  linkLast[id] = -9;
+}
+const label = (x, y, t, a = 'middle') => (el('text', { class: 'lbl', x, y, 'text-anchor': a }, gLine).textContent = t);
+label(150, INS - 6, 'new tasks'); label(150, RD + 13, 'results');
+label(370, INS - 6, 'insert / reset overdue'); label(370, RD + 13, 'read done');
+label(618, 112, 'poll & claim pending'); label(690, 238, 'save done');
+
+for (const [id, n] of Object.entries(N)) {
+  const h = n.h || 34;
+  n.g = el('g', { class: 'n' + (n.d ? ' d' : '') }, gNode);
+  el('rect', { x: n.x - n.w / 2, y: n.y - h / 2, width: n.w, height: h, rx: 6 }, n.g);
+  n.tEl = el('text', { class: 't', x: n.x, y: n.y - (n.wk != null ? 3 : 2) }, n.g);
+  n.sEl = el('text', { class: 's', x: n.x, y: n.y + 11 }, n.g);
+  if (n.wk != null) {
+    el('rect', { class: 'bar-bg', x: n.x - n.w / 2 + 8, y: n.y + 13, width: n.w - 16, height: 2 }, n.g);
+    n.bar = el('rect', { class: 'bar-fg', x: n.x - n.w / 2 + 8, y: n.y + 13, width: 0, height: 2 }, n.g);
+  }
+  n.last = -9; n.tv = n.sv = null;
+}
+function setNode(id, t, s) {
+  const n = N[id];
+  if (t !== n.tv) n.tEl.textContent = n.tv = t;
+  if (s !== n.sv) n.sEl.textContent = n.sv = s;
+}
+
+// ═════════════════════════ tokens ═════════════════════════
+const toks = [];
+function mkTok(color, x, y, r = 5, txt) {
+  const g = el('g', {}, gTok);
+  const c = el('circle', { r }, g); c.style.fill = `var(--${color})`;
+  let t = null; if (txt != null) { t = el('text', { class: 'tok-t' }, g); t.textContent = txt; }
+  const tok = { g, c, t, x, y, q: [], wait: 0 };
+  toks.push(tok); return tok;
+}
+const colorTok = (tok, color) => (tok.c.style.fill = `var(--${color})`);
+const P = (x, y, extra = {}) => ({ x, y, ...extra });
+function stepTok(t, dt) {
+  if (t.wait > 0) { t.wait -= dt; return; }
+  let move = TOK * dt;
+  while (move > 0 && t.q.length) {
+    const w = t.q[0], dx = w.x - t.x, dy = w.y - t.y, d = Math.hypot(dx, dy);
+    if (d <= move) {
+      t.x = w.x; t.y = w.y; move -= d; t.q.shift();
+      if (w.n) N[w.n].last = rt;
+      if (w.l) linkLast[w.l] = rt;
+      if (w.fn) w.fn(t);
+      if (w.wait) { t.wait = w.wait; break; }
+    } else { t.x += dx / d * move; t.y += dy / d * move; move = 0; }
+  }
+  if (!t.q.length && t.wait <= 0) t.dead = true;
+}
+
+// ═════════════════════════ flows ═════════════════════════
+let lastDetail = '';
+const detail = h => (lastDetail = h);
+
+// External Service -> Handler -> MongoDB: new task inserted as pending
+function arrive() {
+  const d = mkDoc();
+  const tok = mkTok('skip', 120, INS);
+  N.X.last = rt;
+  tok.q = [P(180, INS, { n: 'H', l: 'new' }), P(300, INS), P(440, INS, { n: 'M', l: 'ins', fn: () => {
+    insertDoc(d);
+    detail(`Handler inserts <b>${d.id}</b> with status <b>pending</b>`);
+  } })];
+}
+
+// Worker -> MongoDB: poll, atomic claim, answer comes back
+function poll(w, forced) {
+  const cand = forced || (oldestPending() || {}).id || null;
+  w.busy = true;
+  const y = wy(w.i) - 5, l = 'c' + w.i;
+  const tok = mkTok('skip', 750, y, 4);
+  const back = [P(635, INS), P(635, y), P(750, y, { n: 'w' + w.i, fn: () => {
+    w.busy = false;
+    if (tok.won && w.state === 'idle') {
+      w.state = 'working'; w.doc = tok.won.id; w.rem = w.total = tok.won.dur;
+    } else if (!tok.won) w.nextPoll = sim + rand(15, 45);
+    settle(w);
+  } })];
+  tok.q = [P(635, y, { l }), P(635, INS), P(600, INS, { n: 'M', fn: () => {
+    const d = cand && docs.get(cand);
+    const who = 'Worker ' + (w.i + 1);
+    if (d && d.status === 'pending') {
+      // atomic findOneAndUpdate: filter matches, status flips in one step
+      d.status = 'working'; d.claimedAt = sim; d.worker = w.i;
+      tok.won = d; colorTok(tok, 'accent');
+      detail(`${who} findOneAndUpdate on <b>${d.id}</b> → matched, status <b>pending → working</b>`);
+    } else if (d) {
+      st.races++; colorTok(tok, 'miss');
+      detail(`${who} findOneAndUpdate on <b>${d.id}</b> → <b>null</b>, already ${d.status} (Worker ${d.worker + 1} won). Never both win.`);
+    } else colorTok(tok, 'skip');
+    tok.q.push(...back);
+  } })];
+}
+
+// Worker -> MongoDB: save result, status done
+function saveDone(w, d) {
+  const y = wy(w.i) + 5;
+  const tok = mkTok('hit', 750, y, 4);
+  tok.q = [P(660, y, { l: 's' + w.i }), P(660, RD), P(600, RD, { n: 'M', fn: () => {
+    d.status = 'done'; st.executed++; doneTimes.push(sim);
+    detail(`Worker ${w.i + 1} saves result of <b>${d.id}</b>, status <b>working → done</b>${d.tries ? ` (after ${d.tries} retr${d.tries > 1 ? 'ies' : 'y'})` : ''}`);
+  } })];
+}
+
+// Handler scan: ship done results, reset overdue working tasks
+function scan() {
+  N.H.last = rt;
+  const all = [...docs.values()];
+  const done = all.filter(d => d.status === 'done' && !d.shipping);
+  const over = all.filter(d => d.status === 'working' && !d.resetting && sim - d.claimedAt >= OVERDUE);
+  if (done.length) {
+    done.forEach(d => (d.shipping = true));
+    const tok = mkTok('hit', 440, RD, 7, done.length);
+    tok.q = [P(300, RD, { n: 'H', l: 'read' }), P(180, RD), P(120, RD, { n: 'X', l: 'res', fn: () => {
+      done.forEach(d => docs.delete(d.id)); st.shipped += done.length;
+      detail(`Handler reads <b>${done.length}</b> done task${done.length > 1 ? 's' : ''} and sends the results to the external service`);
+    } })];
+  }
+  if (over.length) {
+    over.forEach(d => (d.resetting = true));
+    const tok = mkTok('miss', 300, INS, 7, over.length);
+    tok.q = [P(440, INS, { n: 'M', l: 'ins', fn: () => {
+      for (const d of over) {
+        d.status = 'pending'; d.worker = null; d.claimedAt = 0; d.tries++; d.resetting = false; st.retries++;
+      }
+      detail(`Handler found <b>${over.length}</b> task${over.length > 1 ? 's' : ''} working for over 15 min (${over.map(d => d.id).join(', ')}) → reset to <b>pending</b>, another worker will retry`);
+    } })];
+  }
+}
+
+function settle(w) {
+  if (w.leaving && w.state === 'idle' && !w.busy) { w.state = 'off'; w.leaving = false; }
+}
+
+// ═════════════════════════ ui ═════════════════════════
+const TILES = [
+  ['q', 'Queue depth (pending)'], ['wk', 'Working / workers'], ['dn', 'Done, not yet shipped'],
+  ['ex', 'All tasks executed'], ['tp', 'Throughput (modeled)'], ['rt', 'Retries (overdue resets)'],
+  ['rc', 'Claims lost to a race'], ['ls', 'Tasks lost'], ['clk', 'Sim clock (modeled)'],
+];
+const tileEl = {};
+for (const [id, k] of TILES) {
+  const d = document.createElement('div'); d.className = 'tile';
+  d.innerHTML = `<div class="k">${k}</div><div class="v"></div>`;
+  $('#tiles').appendChild(d); tileEl[id] = d.querySelector('.v');
+}
+
+function docChip(d) {
+  const w = d.worker != null ? W[d.worker] : null;
+  let cls = d.status, sub = '';
+  if (d.status === 'pending') sub = 'wait ' + fmtT(sim - d.born);
+  else if (d.status === 'done') sub = 'result saved';
+  else {
+    const age = sim - d.claimedAt;
+    if (age >= OVERDUE) { cls = 'over'; sub = 'overdue'; }
+    else if (w && w.state === 'dead') { cls = 'working'; sub = 'lost, reset ' + fmtT(OVERDUE - age); }
+    else sub = `W${d.worker + 1} ${fmtT(w ? w.rem : 0)} left`;
+  }
+  return `<div class="doc ${cls}">${d.id}${d.tries ? ' ↻' + d.tries : ''}<small>${sub}</small></div>`;
+}
+
+function updateUI() {
+  const all = [...docs.values()];
+  const pend = all.filter(d => d.status === 'pending').length;
+  const work = all.filter(d => d.status === 'working').length;
+  const done = all.filter(d => d.status === 'done').length;
+  const alive = live().filter(w => !w.leaving).length;
+  const win = Math.min(600, sim);
+  const recent = doneTimes.filter(t => t > sim - win).length;
+  const tp = win > 20 ? recent / (win / 60) : 0;
+  const lost = st.arrived - docs.size - st.shipped;
+  tileEl.q.innerHTML = `<span class="${pend > 10 ? 'bad' : ''}">${pend}</span>`;
+  tileEl.wk.innerHTML = `${work} <small>/ ${alive} alive</small>`;
+  tileEl.dn.textContent = done;
+  tileEl.ex.innerHTML = `${fmt(st.executed)} <small>of ${fmt(st.arrived)} arrived</small>`;
+  tileEl.tp.innerHTML = `${tp.toFixed(1)} <small>tasks/min</small>`;
+  tileEl.rt.innerHTML = `<span class="${st.retries ? 'bad' : ''}">${st.retries}</span>`;
+  tileEl.rc.innerHTML = `${st.races} <small>each task has 1 winner</small>`;
+  tileEl.ls.innerHTML = `<span class="good">${lost}</span>`;
+  tileEl.clk.textContent = fmtT(sim);
+  $('#detail').innerHTML = lastDetail || 'Waiting for the first event...';
+  $('#wO').textContent = alive;
+
+  const shown = all.slice(0, 40);
+  $('#docs').innerHTML = shown.map(docChip).join('') +
+    (all.length > 40 ? `<div class="doc more">+${all.length - 40} more</div>` : '') +
+    (all.length ? '' : '<div class="doc more">empty</div>');
+}
+
+function updateNodes() {
+  setNode('X', 'External Service', '');
+  setNode('H', 'Task Handler', `scan every ${SCAN}s, next ${Math.max(0, Math.ceil(nextScan - sim))}s`);
+  let p = 0, k = 0, d = 0;
+  for (const x of docs.values()) x.status === 'pending' ? p++ : x.status === 'working' ? k++ : d++;
+  setNode('M', 'MongoDB', `${p} pending | ${k} working | ${d} done`);
+  for (const w of W) {
+    const n = N['w' + w.i];
+    const dead = w.state === 'dead', off = w.state === 'off';
+    n.g.classList.toggle('dead', dead);
+    n.g.classList.toggle('off', off);
+    linkEl['c' + w.i].classList.toggle('dim', off);
+    linkEl['s' + w.i].classList.toggle('dim', off);
+    let s = '';
+    if (off) s = 'not running';
+    else if (dead) s = `killed, holds ${w.doc}`;
+    else if (w.state === 'working') s = `${w.doc}  ${fmtT(w.rem)} left${w.leaving ? ' (leaving)' : ''}`;
+    else s = w.busy ? 'claiming...' : 'idle, polling';
+    setNode('w' + w.i, 'Worker ' + (w.i + 1), s);
+    n.bar.setAttribute('width', w.state === 'working' || dead ? (n.w - 16) * (1 - Math.max(0, w.rem) / (w.total || 1)) : 0);
+    n.bar.style.fill = dead ? 'var(--miss)' : 'var(--accent)';
+  }
+}
+
+// ═════════════════════════ controls ═════════════════════════
+$('#play').onclick = () => { paused = !paused; $('#play').textContent = paused ? 'Play' : 'Pause'; };
+$('#speed').onchange = e => (speed = +e.target.value);
+{
+  const inp = $('#rate'), out = $('#rateO');
+  inp.oninput = () => { rate = +inp.value; out.textContent = rate + '/min'; };
+  inp.oninput();
+}
+$('#winc').onclick = () => {
+  const w = W.find(x => x.state === 'dead') || W.find(x => x.state === 'off');
+  if (!w) { detail('All 8 worker slots are in use.'); return; }
+  const wasDead = w.state === 'dead';
+  w.state = 'idle'; w.busy = false; w.leaving = false; w.nextPoll = sim + rand(2, 10);
+  if (wasDead) { w.doc = null; w.rem = 0; w.total = 0; }
+  detail(`Worker ${w.i + 1} started${wasDead ? ' (replaces the killed one)' : ''}. No config change needed, it just starts polling.`);
+};
+$('#wdec').onclick = () => {
+  const cand = live().filter(w => !w.leaving);
+  if (cand.length <= 1) { detail('Keep at least one worker alive.'); return; }
+  const w = cand.filter(x => x.state === 'idle' && !x.busy).pop() || cand.pop();
+  w.leaving = true; settle(w);
+  detail(`Worker ${w.i + 1} ${w.state === 'off' ? 'stopped' : 'will stop after its current task'}.`);
+};
+$('#kill').onclick = () => {
+  const alive = live();
+  const w = alive.filter(x => x.state === 'working').sort(() => Math.random() - 0.5)[0] || alive[0];
+  if (!w) { detail('No live worker to kill.'); return; }
+  const had = w.doc;
+  w.state = 'dead'; w.leaving = false;
+  detail(had
+    ? `Worker ${w.i + 1} was <b>killed</b> while running <b>${had}</b>. The task stays <b>working</b> until the handler sees it is 15 min old, then resets it to pending.`
+    : `Worker ${w.i + 1} was <b>killed</b> while idle. Nothing is lost, the others keep polling.`);
+};
+$('#race').onclick = () => {
+  const idle = live().filter(w => w.state === 'idle' && !w.busy);
+  if (idle.length < 2) { detail('Race needs 2 or more idle workers. Add workers or lower the arrival rate.'); return; }
+  let d = oldestPending();
+  if (!d) { d = mkDoc(); insertDoc(d); }
+  idle.forEach(w => poll(w, d.id));
+  detail(`${idle.length} workers all try to claim <b>${d.id}</b> at the same time...`);
+};
+
+// ═════════════════════════ main loop ═════════════════════════
+for (let i = 0; i < 5; i++) insertDoc(mkDoc());
+
+let prev = performance.now(), uiAcc = 0;
+function frame(ts) {
+  const real = Math.min(0.05, (ts - prev) / 1000); prev = ts;
+  rt += real;
+  const dt = paused ? 0 : real * speed;
+  const sdt = dt * TS;
+  sim += sdt;
+
+  if (!paused) {
+    arrAcc += sdt * rate / 60;
+    while (arrAcc >= 1) { arrAcc--; arrive(); }
+    if (sim >= nextScan) { nextScan = sim + SCAN; scan(); }
+    for (const w of W) {
+      if (w.state === 'working') {
+        w.rem -= sdt;
+        if (w.rem <= 0) {
+          const d = docs.get(w.doc);
+          w.rem = 0; w.state = 'idle'; w.doc = null; w.nextPoll = sim + rand(5, 20);
+          if (d) saveDone(w, d);
+          settle(w);
+        }
+      } else if (w.state === 'idle' && !w.busy && !w.leaving && sim >= w.nextPoll) poll(w);
+    }
+  }
+
+  for (let i = toks.length - 1; i >= 0; i--) {
+    const t = toks[i]; stepTok(t, dt);
+    if (t.dead) { t.g.remove(); toks.splice(i, 1); continue; }
+    t.g.setAttribute('transform', `translate(${t.x.toFixed(1)},${t.y.toFixed(1)})`);
+  }
+  for (const id in N) N[id].g.classList.toggle('on', rt - N[id].last < 0.18);
+  for (const id in linkEl) linkEl[id].classList.toggle('on', rt - linkLast[id] < 0.25);
+
+  uiAcc += real;
+  if (uiAcc > 0.2) { uiAcc = 0; updateUI(); updateNodes(); }
+  requestAnimationFrame(frame);
+}
+
+updateUI(); updateNodes();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

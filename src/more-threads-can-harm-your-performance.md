@@ -10,18 +10,17 @@ I used to work on a RTB DSP system built with [RTBKit](https://github.com/rtbkit
 This post explains why spinning up too many threads in a Reactor-pattern system can be bad, and how fixing it allowed us to improve performance significantly.
 
 ## RTBKit Architecture
-RTBKit uses a mix of thread pools and an event loop to process requests. The Event Loop sits in the center and routes messages between the different components. Here is a simple view of the system:
-<div style="display:flex;flex-direction:column;align-items:center;font-family:system-ui,sans-serif;margin:24px 0;gap:6px;">
-  <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">Augmenter Threads<span style="display:block;font-size:11px;color:#888;margin-top:2px;">IO-bound work</span></div>
-  <div style="font-size:18px;color:#c0c0c0;line-height:1;">↕</div>
-  <div style="display:flex;gap:12px;align-items:center;">
-    <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">Exchange<br>Worker Threads<span style="display:block;font-size:11px;color:#888;margin-top:2px;">CPU-bound work</span></div>
-    <div style="font-size:18px;color:#c0c0c0;line-height:1;">↔</div>
-    <div style="background:#e8e8e8;border:2px solid #999;border-radius:6px;padding:12px 24px;text-align:center;font-size:13px;color:#2d2d2d;font-weight:600;">Event Loop<span style="display:block;font-size:11px;color:#666;font-weight:400;margin-top:2px;">(Reactor)</span></div>
-    <div style="font-size:18px;color:#c0c0c0;line-height:1;">↔</div>
-    <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">Bidder<br>Threads<span style="display:block;font-size:11px;color:#888;margin-top:2px;">IO-bound work</span></div>
-  </div>
-</div>
+RTBKit uses a mix of thread pools and an event loop to process requests. The Event Loop sits in the center and routes messages between the different components. Here is a simple view of the system.
+
+Try the simulator below. All numbers in it are modeled, not measured, but the shape matches what we saw.
+- Drag **Worker threads** from 36 down to 16 and watch the event loop CPU, the inbox queue and the timeouts.
+- Turn off **Logging in event loop** to see Fix 1 on its own.
+- Raise **Traffic** to see where each setup breaks.
+
+<iframe src="./more-threads-can-harm-your-performance-sim.html" title="Worker threads versus one event loop simulator" style="width:100%;height:880px;border:1px solid #d8d8d8;border-radius:8px;" loading="lazy"></iframe>
+
+[Open the simulator in full screen](./more-threads-can-harm-your-performance-sim.html)
+
 
 - **Exchange workers:** These are the main workers, they receive the HTTP bid request, parse the JSON, and match the bid request against a large number of campaigns. This is very CPU-intensive work.
 - **Event Loop:** The exchange worker thread finishes and sends a message to a queue. The event loop picks it up and routes it to the augmenter threads.

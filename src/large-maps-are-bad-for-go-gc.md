@@ -14,30 +14,6 @@ But if you allocate 1 Gigabyte of small objects linked together by millions of p
 
 This is a well-known issue in the Go community: [runtime: Large maps cause significant GC pauses](https://github.com/golang/go/issues/9477)
 
-<div style="display:flex;flex-direction:column;align-items:center;font-family:system-ui,sans-serif;margin:24px 0;">
-  <div style="font-size:12px;color:#888;text-align:center;margin-bottom:12px;text-transform:uppercase;letter-spacing:0.06em;">GC Mark Phase</div>
-
-  <div style="background:#e8e8e8;border:1.5px solid #aaa;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">Roots (globals, stacks)</div>
-  <div style="display:flex;justify-content:center;margin:3px 0;"><svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg></div>
-  <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">Follow pointer → mark object alive</div>
-  <div style="display:flex;justify-content:center;margin:3px 0;"><svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg></div>
-  <div style="background:#e8e8e8;border:1.5px solid #aaa;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">Does this object contain pointers?</div>
-
-  <div style="display:flex;justify-content:center;"><svg width="14" height="8" viewBox="0 0 14 8"><line x1="7" y1="0" x2="7" y2="8" stroke="#c0c0c0" stroke-width="1.5"/></svg></div>
-  <div style="display:flex;gap:64px;align-items:flex-start;border-top:1.5px solid #c0c0c0;padding-top:8px;">
-    <div style="display:flex;flex-direction:column;align-items:center;">
-      <div style="font-size:11px;color:#888;margin-bottom:3px;">No (e.g. []byte)</div>
-      <div style="display:flex;justify-content:center;margin:2px 0;"><svg width="14" height="16" viewBox="0 0 14 16"><line x1="7" y1="0" x2="7" y2="9" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,16 2,8 12,8" fill="#c0c0c0"/></svg></div>
-      <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">Skip — done instantly</div>
-    </div>
-    <div style="display:flex;flex-direction:column;align-items:center;">
-      <div style="font-size:11px;color:#888;margin-bottom:3px;">Yes (e.g. map[string]string)</div>
-      <div style="display:flex;justify-content:center;margin:2px 0;"><svg width="14" height="16" viewBox="0 0 14 16"><line x1="7" y1="0" x2="7" y2="9" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,16 2,8 12,8" fill="#c0c0c0"/></svg></div>
-      <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">Chase every pointer recursively</div>
-    </div>
-  </div>
-</div>
-
 
 ## Large Map in Go
 
@@ -58,29 +34,6 @@ So, if you have a `map[string]string` with 10 million entries, you do not just h
 
 That is over 20 million individual pointers! During every single GC cycle, the Go standard garbage collector must scan all of them.
 
-<div style="display:flex;flex-direction:column;align-items:center;font-family:system-ui,sans-serif;margin:24px 0;">
-  <div style="font-size:12px;color:#888;text-align:center;margin-bottom:12px;text-transform:uppercase;letter-spacing:0.06em;">map[string]string — one entry, many pointers</div>
-  <div style="background:#e8e8e8;border:1.5px solid #aaa;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">hmap header</div>
-  <div style="display:flex;justify-content:center;margin:3px 0;"><svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg></div>
-  <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">bucket array ptr</div>
-  <div style="display:flex;justify-content:center;margin:3px 0;"><svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg></div>
-  <div style="border:1.5px solid #c0c0c0;border-radius:8px;padding:12px 20px;">
-    <div style="font-size:11px;color:#888;text-align:center;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.05em;">Bucket (8 slots)</div>
-    <div style="display:flex;gap:24px;">
-      <div style="display:flex;flex-direction:column;align-items:center;">
-        <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:6px 14px;text-align:center;font-size:12px;color:#2d2d2d;">string key<br><span style="font-size:10px;color:#888;">ptr + len</span></div>
-        <div style="display:flex;justify-content:center;margin:3px 0;"><svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg></div>
-        <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:6px 14px;text-align:center;font-size:12px;color:#2d2d2d;">[]byte</div>
-      </div>
-      <div style="display:flex;flex-direction:column;align-items:center;">
-        <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:6px 14px;text-align:center;font-size:12px;color:#2d2d2d;">string val<br><span style="font-size:10px;color:#888;">ptr + len</span></div>
-        <div style="display:flex;justify-content:center;margin:3px 0;"><svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg></div>
-        <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:6px 14px;text-align:center;font-size:12px;color:#2d2d2d;">[]byte</div>
-      </div>
-    </div>
-  </div>
-  <div style="font-size:12px;color:#888;margin-top:12px;">Each string header holds a pointer — the GC must follow every one.</div>
-</div>
 
 Even if you never modify the map, the GC does not know that. It has to scan the whole thing every time to make sure memory is still reachable
 
@@ -94,18 +47,16 @@ To make routing fast, we decided to load all the routing rules into a `map[strin
 
 Then I used `pprof` to see where the CPU time was going. I expected to see JSON parsing taking up the time. Instead, I saw `runtime.gcDrainMarkWorker` and `runtime.gcDrainMarkWorkerIdle` dominating the CPU profile. The GC was working overtime just to check a large map what would never run out of scope
 
-Here is the workflow of the old system:
+Here is the workflow of the old system. The simulator below also shows the GC mark phase, the map layout and the new Redis design:
 
-<div style="display:flex;flex-direction:column;align-items:center;font-family:system-ui,sans-serif;margin:24px 0;">
-  <div style="font-size:12px;color:#888;text-align:center;margin-bottom:12px;text-transform:uppercase;letter-spacing:0.06em;">Old system</div>
-  <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">Incoming Request</div>
-  <div style="display:flex;justify-content:center;margin:3px 0;"><svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg></div>
-  <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">Go HTTP Server</div>
-  <div style="display:flex;justify-content:center;margin:3px 0;"><svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg></div>
-  <div style="background:#e8e8e8;border:1.5px solid #aaa;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">Lookup rule in Large Map<br><span style="font-size:11px;color:#888;">map[string]string, millions of pointers, lives forever in GC scope</span></div>
-  <div style="display:flex;justify-content:center;margin:3px 0;"><svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg></div>
-  <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">Forward to Upstream</div>
-</div>
+- Slide **Map entries** from 1M to 20M and watch the modeled GC mark time and stalls grow.
+- Switch **Design** between the in-memory map (old) and Redis (new).
+- Click **Run GC mark phase** to replay how the GC chases pointers in a map but skips a `[]byte` blob.
+
+<iframe src="./large-maps-are-bad-for-go-gc-sim.html" title="Large maps vs Go GC simulator" style="width:100%;height:1480px;border:1px solid #d8d8d8;border-radius:8px;" loading="lazy"></iframe>
+
+[Open the simulator in full screen](./large-maps-are-bad-for-go-gc-sim.html)
+
 
 ### Reproducing the Issue
 
@@ -179,18 +130,8 @@ Instead of keeping the data in memory, why not move it out of the Go process ent
 
 ## We go with Redis
 
-Both solutions sound good, and we decided to go with Redis. Because it also reduce whole system memory. The new workflow looks like this:
+Both solutions sound good, and we decided to go with Redis. Because it also reduce whole system memory. The Redis design is the second option in the simulator above.
 
-<div style="display:flex;flex-direction:column;align-items:center;font-family:system-ui,sans-serif;margin:24px 0;">
-  <div style="font-size:12px;color:#888;text-align:center;margin-bottom:12px;text-transform:uppercase;letter-spacing:0.06em;">New system</div>
-  <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">Incoming Request</div>
-  <div style="display:flex;justify-content:center;margin:3px 0;"><svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg></div>
-  <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">Go HTTP Server</div>
-  <div style="display:flex;justify-content:center;margin:3px 0;"><svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg></div>
-  <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">Lookup rule in Redis<br><span style="font-size:11px;color:#888;">data lives outside Go heap, invisible to GC, adds ~2ms latency</span></div>
-  <div style="display:flex;justify-content:center;margin:3px 0;"><svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg></div>
-  <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">Forward to Upstream</div>
-</div>
 
 ![GC CPU usage after optimization](../go_gc_after.jpeg)
 

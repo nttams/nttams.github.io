@@ -27,62 +27,12 @@ It's MongoDB 😏. It handles atomic operations and storage.
 
 ---
 
-<div style="display:flex;flex-direction:column;align-items:center;font-family:system-ui,sans-serif;margin:32px 0;gap:0;">
+Try it below. All task times and the clock are modeled.
 
-  <!-- External Service -->
-  <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 28px;text-align:center;font-size:13px;color:#2d2d2d;min-width:160px;">External Service</div>
+- Raise the arrival rate or add workers and watch the queue depth.
+- Press "Race for one task" to see several workers claim the same task. Only one wins, the rest get `null`.
+- Press "Kill a worker" to see its task stay `working` until 15 minutes pass, then get reset and retried.
 
-  <!-- Two separate arrows -->
-  <div style="display:flex;gap:24px;align-items:center;margin:4px 0;">
-    <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
-      <svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg>
-      <div style="font-size:11px;color:#888;">new tasks</div>
-    </div>
-    <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
-      <div style="font-size:11px;color:#888;">results</div>
-      <svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="7" x2="7" y2="20" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,0 2,8 12,8" fill="#c0c0c0"/></svg>
-    </div>
-  </div>
+<iframe src="./distributed-task-scheduling-sim.html" title="Distributed task scheduling simulator" style="width:100%;height:920px;border:1px solid #d8d8d8;border-radius:8px;" loading="lazy"></iframe>
 
-  <!-- Task Handler -->
-  <div style="background:#e8e8e8;border:1.5px solid #aaa;border-radius:6px;padding:9px 28px;text-align:center;font-size:13px;color:#2d2d2d;min-width:160px;">Task Handler</div>
-
-  <!-- Two separate arrows: Task Handler <-> MongoDB -->
-  <div style="display:flex;gap:24px;align-items:center;margin:4px 0;">
-    <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
-      <svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg>
-      <div style="font-size:11px;color:#888;">insert pending / reset overdue</div>
-    </div>
-    <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
-      <div style="font-size:11px;color:#888;">read done</div>
-      <svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="7" x2="7" y2="20" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,0 2,8 12,8" fill="#c0c0c0"/></svg>
-    </div>
-  </div>
-
-  <!-- MongoDB (center) -->
-  <div style="background:#e8e8e8;border:1.5px solid #aaa;border-radius:6px;padding:9px 28px;text-align:center;font-size:13px;color:#2d2d2d;min-width:160px;">MongoDB</div>
-
-  <!-- Two separate arrows: MongoDB <-> Workers -->
-  <div style="display:flex;gap:24px;align-items:center;margin:4px 0;">
-    <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
-      <svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="0" x2="7" y2="13" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,20 2,12 12,12" fill="#c0c0c0"/></svg>
-      <div style="font-size:11px;color:#888;">poll &amp; claim pending</div>
-    </div>
-    <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
-      <div style="font-size:11px;color:#888;">save done</div>
-      <svg width="14" height="20" viewBox="0 0 14 20"><line x1="7" y1="7" x2="7" y2="20" stroke="#c0c0c0" stroke-width="1.5"/><polygon points="7,0 2,8 12,8" fill="#c0c0c0"/></svg>
-    </div>
-  </div>
-
-  <!-- Workers grouped in a box -->
-  <div style="border:1.5px solid #c0c0c0;border-radius:8px;padding:12px 20px;">
-    <div style="font-size:11px;color:#888;text-align:center;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.05em;">Workers</div>
-    <div style="display:flex;gap:12px;align-items:stretch;">
-      <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">Worker 1</div>
-      <div style="background:#f5f5f5;border:1.5px solid #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#2d2d2d;">Worker 2</div>
-      <div style="background:#f5f5f5;border:1.5px dashed #c0c0c0;border-radius:6px;padding:9px 20px;text-align:center;font-size:13px;color:#aaa;">Worker N</div>
-    </div>
-  </div>
-
-</div>
-
+[Open the simulator in full screen](./distributed-task-scheduling-sim.html)

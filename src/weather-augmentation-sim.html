@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Weather Augmentation Simulator</title>
+<style>
+  :root {
+    --bg:#fafafa; --panel:#fff; --ink:#2d2d2d; --muted:#888; --line:#d8d8d8;
+    --node:#f5f5f5; --node-b:#c0c0c0; --dec:#e8e8e8; --dec-b:#aaa;
+    --sea:#f7f8fa; --land:#e6e6e6; --target:#cbd6ee; --target-b:#8fa4d4;
+    --hit:#2f9e6b; --miss:#e0802b; --skip:#a3a3a3; --accent:#3b6fd8; --fly:#8a63d2;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg:#1c1d21; --panel:#24262b; --ink:#e4e4e4; --muted:#9a9a9a; --line:#3a3c42;
+      --node:#2c2e34; --node-b:#4f525a; --dec:#34373e; --dec-b:#666a74;
+      --sea:#202227; --land:#33363c; --target:#2f3d5c; --target-b:#5873ad;
+      --hit:#4cc38a; --miss:#f0954a; --skip:#7a7a7a; --accent:#6b95ef; --fly:#a68bec;
+    }
+  }
+  *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--ink); font-family:system-ui,sans-serif; font-size:13px; padding:12px; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:12px 14px; margin-bottom:12px; }
+  .lane-t { font-size:10px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:8px; }
+
+  /* controls */
+  .bar { display:flex; flex-wrap:wrap; gap:10px 18px; align-items:center; }
+  .bar h1 { font-size:14px; font-weight:700; margin-right:auto; }
+  .grp { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--muted); }
+  .grp input[type=range] { width:84px; accent-color:var(--accent); }
+  .grp output { color:var(--ink); min-width:30px; font-variant-numeric:tabular-nums; }
+  button, select { font:inherit; font-size:12px; color:var(--ink); background:var(--node); border:1px solid var(--node-b); border-radius:5px; padding:4px 10px; cursor:pointer; }
+  button:hover { border-color:var(--accent); }
+  .seg { display:inline-flex; }
+  .seg button { border-radius:0; }
+  .seg button:first-child { border-radius:5px 0 0 5px; }
+  .seg button:last-child { border-radius:0 5px 5px 0; border-left:none; }
+  .seg button.on, .chk.on { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .chk { padding:4px 8px; }
+
+  /* offline stepper */
+  .steps { display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin-bottom:10px; }
+  .step { background:var(--node); border:1.5px solid var(--node-b); border-radius:6px; padding:5px 10px; font-size:12px; transition:all .15s; }
+  .step.on { border-color:var(--accent); color:var(--accent); font-weight:600; }
+  .arr { color:var(--node-b); }
+  canvas#map { display:block; width:100%; border-radius:6px; cursor:crosshair; }
+  .legend { display:flex; flex-wrap:wrap; gap:4px 14px; margin-top:8px; font-size:11px; color:var(--muted); }
+  .sw { display:inline-block; width:10px; height:10px; border-radius:2px; vertical-align:-1px; margin-right:4px; }
+  .dot { border-radius:50%; }
+  .ring { background:transparent !important; border:1.5px solid; }
+
+  /* stats */
+  .tiles { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:8px; }
+  .tile { border:1px solid var(--line); border-radius:6px; padding:7px 10px; }
+  .tile .k { font-size:10.5px; color:var(--muted); }
+  .tile .v { font-size:17px; font-weight:600; font-variant-numeric:tabular-nums; margin-top:2px; }
+  .tile .v small { font-size:11px; font-weight:400; color:var(--muted); }
+  .good { color:var(--hit); } .bad { color:var(--miss); }
+  #detail { margin-top:10px; font-size:12px; line-height:1.5; min-height:38px; font-family:ui-monospace,Menlo,monospace; color:var(--muted); }
+  #detail b { color:var(--ink); font-weight:600; }
+  .chips { display:flex; flex-wrap:wrap; gap:4px; margin-top:6px; min-height:22px; }
+  .chip { font-family:ui-monospace,Menlo,monospace; font-size:10.5px; border:1px solid var(--miss); color:var(--miss); border-radius:4px; padding:1px 5px; }
+  .chip.more { border-color:var(--line); color:var(--muted); }
+
+  /* flow svg */
+  svg#flow { display:block; width:100%; height:auto; }
+  .n rect { fill:var(--node); stroke:var(--node-b); stroke-width:1.5; transition:stroke .1s; }
+  .n.d rect { fill:var(--dec); stroke:var(--dec-b); }
+  .n.on rect { stroke:var(--accent); stroke-width:2; }
+  .n.dim { opacity:.35; }
+  .n .t { font-size:12px; fill:var(--ink); text-anchor:middle; }
+  .n .s { font-size:9.5px; fill:var(--muted); text-anchor:middle; }
+  .ln { fill:none; stroke:var(--node-b); stroke-width:1.5; }
+  .ln.dash { stroke-dasharray:4 3; }
+  .ln.on { stroke:var(--accent); }
+  .lbl { font-size:9.5px; fill:var(--muted); }
+  .lane { fill:none; stroke:var(--line); }
+  .lane-txt { font-size:9px; font-weight:700; fill:var(--muted); letter-spacing:1px; }
+  .tok-t { font-size:8px; font-weight:700; fill:#fff; text-anchor:middle; dominant-baseline:central; pointer-events:none; }
+</style>
+</head>
+<body>
+
+<div class="card bar">
+  <h1>Real-time Weather Augmentation</h1>
+  <div class="grp"><button id="play">Pause</button>
+    <select id="speed"><option value="0.5">0.5x</option><option value="1" selected>1x</option><option value="2">2x</option><option value="4">4x</option></select></div>
+  <div class="grp">Region check
+    <span class="seg"><button data-mode="h3" class="on">H3 lookup</button><button data-mode="ray">Ray casting</button></span></div>
+  <div class="grp">Targets
+    <button class="chk on" data-r="US">US</button><button class="chk on" data-r="EU">EU</button><button class="chk" data-r="JP">JP</button></div>
+  <div class="grp">Traffic <input type="range" id="rate" min="1" max="20" value="6"><output id="rateO"></output></div>
+  <div class="grp">Tick <input type="range" id="tick" min="2" max="30" value="10"><output id="tickO"></output></div>
+  <div class="grp">Batch <input type="range" id="batch" min="1" max="100" value="50"><output id="batchO"></output></div>
+  <div class="grp">TTL <input type="range" id="ttl" min="1" max="15" value="15"><output id="ttlO"></output></div>
+  <div class="grp"><button id="burst" title="Expire a popular cell and send a spike of requests from it">Burst: popular cell expires</button></div>
+</div>
+
+<div class="card">
+  <div class="lane-t">Offline, build time</div>
+  <div class="steps">
+    <span class="step" id="st0">Region polygons</span><span class="arr">→</span>
+    <span class="step" id="st1">Polygon → H3 cells</span><span class="arr">→</span>
+    <span class="step" id="st2">Target Cell Set: <b id="nCells">0</b> cells</span><span class="arr">→</span>
+    <span class="step" id="st3">Loaded into <code>map[uint64]bool</code></span>
+    <button id="rebuild" style="margin-left:auto">Rebuild</button>
+  </div>
+  <canvas id="map"></canvas>
+  <div class="legend">
+    <span><i class="sw" style="background:var(--target)"></i>Target cell</span>
+    <span><i class="sw" style="background:var(--hit)"></i>Cached weather (fades with TTL)</span>
+    <span><i class="sw ring" style="border-color:var(--miss)"></i>In cells_to_fetch</span>
+    <span><i class="sw ring" style="border-color:var(--fly)"></i>Being fetched</span>
+    <span><i class="sw dot" style="background:var(--hit)"></i>Hit</span>
+    <span><i class="sw dot" style="background:var(--miss)"></i>Miss</span>
+    <span><i class="sw dot" style="background:var(--skip)"></i>Not targeted</span>
+    <span>Click the map to send a request. Map is schematic.</span>
+  </div>
+</div>
+
+<div class="card">
+  <svg id="flow" viewBox="0 0 1000 340"></svg>
+</div>
+
+<div class="card">
+  <div class="tiles" id="tiles"></div>
+  <div id="detail">Waiting for the first request...</div>
+  <div class="lane-t" style="margin-top:10px;margin-bottom:0">Redis Set: cells_to_fetch</div>
+  <div class="chips" id="chips"></div>
+</div>
+
+<script>
+// ═════════════════════════ config ═════════════════════════
+const TIMESCALE = 5;          // sim seconds per real second at 1x
+const TOK_SPEED = 380;        // svg units per real second at 1x
+const MW = 1000, MH = 380, LAT0 = 78, LAT1 = -58;
+const S = 5.5, SQ3 = Math.sqrt(3);
+
+let speed = 1, paused = false, mode = 'h3';
+let rate = 6, tick = 10, batch = 50, ttl = 15;
+const enabled = { US: true, EU: true, JP: false };
+
+const $ = s => document.querySelector(s);
+const fmt = n => n.toLocaleString('en-US');
+const fmtUs = us => us < 10 ? us.toFixed(2) + ' µs' : Math.round(us) + ' µs';
+
+// ═════════════════════════ geography ═════════════════════════
+const proj = (lat, lng) => [(lng + 180) / 360 * MW, (LAT0 - lat) / (LAT0 - LAT1) * MH];
+const unproj = (x, y) => [LAT0 - y / MH * (LAT0 - LAT1), x / MW * 360 - 180];
+const toPix = poly => poly.map(([la, ln]) => proj(la, ln));
+
+const CONTINENTS = [
+  [[70,-165],[72,-130],[75,-90],[70,-65],[60,-62],[47,-53],[44,-66],[35,-75],[25,-80],[30,-85],[29,-95],[20,-97],[15,-92],[8,-79],[16,-100],[23,-110],[32,-117],[40,-124],[48,-125],[58,-137],[60,-147],[55,-163]],
+  [[12,-72],[8,-60],[0,-50],[-8,-35],[-23,-42],[-35,-56],[-55,-68],[-50,-75],[-40,-73],[-18,-70],[-5,-81],[2,-79]],
+  [[71,25],[70,40],[60,60],[45,50],[41,40],[41,29],[36,28],[38,20],[40,18],[37,15],[44,8],[43,3],[36,-6],[37,-9],[43,-9],[48,-5],[51,2],[54,8],[57,8],[58,5],[63,5],[69,15]],
+  [[37,10],[32,32],[30,33],[12,44],[11,51],[-10,40],[-26,33],[-34,26],[-34,18],[-17,12],[-5,12],[5,8],[5,-5],[15,-17],[28,-13],[35,-6]],
+  [[70,60],[77,105],[70,140],[66,180],[60,165],[52,157],[45,140],[35,140],[30,122],[22,114],[10,107],[1,104],[8,98],[16,95],[22,90],[8,77],[22,68],[25,57],[13,45],[30,48],[37,36],[41,40],[45,50],[60,60]],
+  [[-11,131],[-12,142],[-28,153],[-38,147],[-35,138],[-32,116],[-22,114],[-14,127]],
+  [[58,-5],[53,0],[51,1],[50,-5],[55,-6]],
+  [[45,142],[35,140],[33,131],[35,135],[41,140]],
+].map(toPix);
+
+// `edges` models the real border complexity used for ray casting cost.
+const REGIONS = {
+  US: { edges: 4200, at: [39, -98], poly: [[49,-124.7],[49,-95],[49,-89],[46.5,-84.5],[43,-82.5],[42,-83],[45,-75],[45,-71.5],[47.4,-69],[44.8,-67],[41.5,-70],[40.5,-74],[35,-76],[32,-80.8],[30.5,-81.4],[25.2,-80.4],[27.5,-82.6],[30,-84],[30.3,-88],[29,-89.4],[29.7,-93.8],[26,-97.2],[29.8,-101.4],[31.8,-106.5],[31.3,-111],[32.7,-114.7],[32.5,-117.1],[34.5,-120.6],[40.4,-124.4]] },
+  EU: { edges: 18500, at: [49, 12], poly: [[68,20],[69,28],[60,30],[59.5,28],[57.5,27.7],[55.7,26.5],[54,23.5],[52,23.5],[49,22.5],[48,26.5],[45.2,29.6],[42,28],[41.5,26.5],[40,26],[38,24],[36.5,22.5],[40,19.5],[42.5,19.4],[45.5,13.6],[44,12.5],[41,16.5],[39.5,18.5],[38,15.6],[40,15.5],[41.2,13],[43.8,10.2],[43.4,6.8],[43.3,3.5],[41.5,3.2],[38.8,0.2],[36.7,-2],[36,-5.6],[37,-8.9],[42,-8.9],[43.5,-8],[43.4,-1.8],[46.2,-1.2],[48.5,-4.7],[49.4,-0.2],[51,2.5],[53.4,6.9],[55,8.2],[57.7,10.5],[56,12.5],[59,11],[63,13]] },
+  JP: { edges: 2600, at: [37, 138], poly: [[45.5,141.9],[43,145.5],[41.5,141],[38,141],[35,140.8],[34.5,138.5],[33.5,135.5],[33.5,132],[31,130.5],[33.9,129.9],[35.4,132.6],[37,136.7],[39.5,140]] },
+};
+for (const r of Object.values(REGIONS)) r.pix = toPix(r.poly);
+
+const CITIES = [
+  [40.7,-74,5],[34,-118.2,4],[41.9,-87.6,3],[29.8,-95.4,2],[25.8,-80.2,2],[47.6,-122.3,2],[39.7,-105,1.5],[33.7,-84.4,2],
+  [51.5,-0.1,4],[48.9,2.35,3],[52.5,13.4,3],[40.4,-3.7,2],[41.9,12.5,2],[52.2,21,1.5],[52.4,4.9,1.5],[59.3,18,1],
+  [35.7,139.7,3],[34.7,135.5,1.5],[43.7,-79.4,1.5],[19.4,-99.1,2],[-23.5,-46.6,3],[-34.6,-58.4,1.5],[6.5,3.4,2],
+  [30,31.2,1.5],[-26.2,28,1],[55.8,37.6,2],[41,29,1.5],[19,72.8,3],[28.6,77.2,2],[31.2,121.5,3],[39.9,116.4,2],
+  [1.35,103.8,1.5],[-6.2,106.8,2],[-33.9,151.2,1.5],[37.6,127,1.5],
+];
+const cityTotal = CITIES.reduce((a, c) => a + c[2], 0);
+const BURST_CITY = { US: [40.71, -74.0], EU: [48.86, 2.35], JP: [35.68, 139.7] };
+
+// ═════════════════════════ hex grid (stand-in for H3) ═════════════════════════
+const hexCenter = (q, r) => [S * SQ3 * (q + r / 2), S * 1.5 * r];
+function pixToHex(x, y) {
+  const fq = (SQ3 / 3 * x - y / 3) / S, fr = (2 / 3 * y) / S, fs = -fq - fr;
+  let q = Math.round(fq), r = Math.round(fr), s = Math.round(fs);
+  const dq = Math.abs(q - fq), dr = Math.abs(r - fr), ds = Math.abs(s - fs);
+  if (dq > dr && dq > ds) q = -r - s; else if (dr > ds) r = -q - s;
+  return [q, r];
+}
+const key = (q, r) => q + ',' + r;
+function cellId(q, r) {
+  const h = (Math.imul(q + 5000, 73856093) ^ Math.imul(r + 5000, 19349663)) >>> 0;
+  return '85' + h.toString(16).padStart(8, '0') + 'fffff';
+}
+function hexPath(ctx, cx, cy, s) {
+  for (let i = 0; i < 6; i++) {
+    const a = Math.PI / 180 * (60 * i - 30);
+    const px = cx + s * Math.cos(a), py = cy + s * Math.sin(a);
+    i ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
+  }
+  ctx.closePath();
+}
+
+// Ray casting: cast a ray to +x, count edge crossings. Returns crossing x positions.
+function rayCrossings(x, y, poly) {
+  const xs = [];
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const [xi, yi] = poly[i], [xj, yj] = poly[j];
+    if ((yi > y) !== (yj > y)) {
+      const xc = (xj - xi) * (y - yi) / (yj - yi) + xi;
+      if (xc > x) xs.push(xc);
+    }
+  }
+  return xs;
+}
+const inPoly = (x, y, poly) => rayCrossings(x, y, poly).length % 2 === 1;
+
+const cells = new Map();    // key -> {x, y, land}
+const landCells = [];
+for (let r = -1; r <= Math.ceil(MH / (1.5 * S)) + 1; r++) {
+  for (let q = Math.floor(-r / 2) - 2; q <= Math.ceil(MW / (SQ3 * S)) - Math.floor(r / 2) + 2; q++) {
+    const [x, y] = hexCenter(q, r);
+    if (x < -S || x > MW + S || y < -S || y > MH + S) continue;
+    const land = CONTINENTS.some(p => inPoly(x, y, p)) || Object.values(REGIONS).some(g => inPoly(x, y, g.pix));
+    const c = { x, y, land };
+    cells.set(key(q, r), c);
+    if (land) landCells.push(c);
+  }
+}
+function centerOf(k) {
+  let c = cells.get(k);
+  if (!c) { const [q, r] = k.split(',').map(Number); const [x, y] = hexCenter(q, r); c = { x, y }; cells.set(k, c); }
+  return c;
+}
+
+// Offline: polygon -> H3 cells (polyfill by cell center)
+function polyfill() {
+  const set = new Map();
+  for (const [k, c] of cells) {
+    for (const name of Object.keys(REGIONS)) {
+      if (enabled[name] && inPoly(c.x, c.y, REGIONS[name].pix)) { set.set(k, name); break; }
+    }
+  }
+  return set;
+}
+
+// ═════════════════════════ state ═════════════════════════
+let targetSet = new Map();
+let build = null;                 // {set, order, t}
+const cache = new Map();          // cell key -> expires at (sim s)
+const toFetch = new Set();        // Redis Set cells_to_fetch
+const inflight = new Set();
+const pings = [];
+let probe = null;
+let sim = 0, rt = 0, nextTick = 10, spawnAcc = 0;
+const scheduled = [];
+const st = { req: 0, tgt: 0, hit: 0, miss: 0, dup: 0, api: 0, fetched: 0 };
+const lat = { h3: [], ray: [] }, aug = [];
+const push = (a, v) => { a.push(v); if (a.length > 400) a.shift(); };
+const pct = (a, p) => { if (!a.length) return 0; const s = [...a].sort((x, y) => x - y); return s[Math.min(s.length - 1, Math.floor(p * s.length))]; };
+
+// ═════════════════════════ map canvas ═════════════════════════
+const map = $('#map'), mctx = map.getContext('2d');
+const stat = document.createElement('canvas'), sctx = stat.getContext('2d');
+let scale = 1;
+let C = {};
+function readColors() {
+  const s = getComputedStyle(document.documentElement);
+  for (const n of ['sea','land','target','target-b','hit','miss','skip','accent','fly','ink','muted']) C[n] = s.getPropertyValue('--' + n).trim();
+}
+function resize() {
+  const dpr = window.devicePixelRatio || 1, w = map.clientWidth;
+  map.width = stat.width = Math.round(w * dpr);
+  map.height = stat.height = Math.round(w * MH / MW * dpr);
+  map.style.height = (w * MH / MW) + 'px';
+  scale = map.width / MW;
+  renderStatic();
+}
+function renderStatic() {
+  const x = sctx;
+  x.setTransform(scale, 0, 0, scale, 0, 0);
+  x.fillStyle = C.sea; x.fillRect(0, 0, MW, MH);
+  x.beginPath(); for (const c of landCells) hexPath(x, c.x, c.y, S * 0.9); x.fillStyle = C.land; x.fill();
+
+  let shown;
+  if (build) {
+    const t2 = Math.max(0, Math.min(1, (build.t - 0.25) / 0.5));
+    shown = build.order.slice(0, Math.floor(t2 * build.order.length));
+  } else shown = [...targetSet.keys()];
+  x.beginPath(); for (const k of shown) { const c = centerOf(k); hexPath(x, c.x, c.y, S * 0.9); }
+  x.fillStyle = C.target; x.fill();
+
+  x.setLineDash([3, 3]); x.lineWidth = build ? 1.4 : 0.8; x.strokeStyle = C['target-b'];
+  x.font = '600 11px system-ui,sans-serif'; x.textAlign = 'center'; x.fillStyle = C['target-b'];
+  for (const name of Object.keys(REGIONS)) {
+    if (!enabled[name]) continue;
+    const g = REGIONS[name];
+    x.beginPath(); g.pix.forEach(([px, py], i) => i ? x.lineTo(px, py) : x.moveTo(px, py)); x.closePath(); x.stroke();
+    const [lx, ly] = proj(...g.at); x.fillText(name, lx, ly);
+  }
+  x.setLineDash([]);
+}
+function drawMap() {
+  const m = mctx;
+  m.setTransform(1, 0, 0, 1, 0, 0); m.drawImage(stat, 0, 0);
+  m.setTransform(scale, 0, 0, scale, 0, 0);
+
+  for (const [k, exp] of cache) {
+    const rem = exp - sim;
+    if (rem <= 0) { cache.delete(k); continue; }
+    const c = centerOf(k);
+    m.globalAlpha = 0.2 + 0.7 * Math.min(1, rem / (ttl * 60));
+    m.fillStyle = C.hit; m.beginPath(); hexPath(m, c.x, c.y, S * 0.9); m.fill();
+  }
+  m.globalAlpha = 1; m.lineWidth = 1.4;
+  m.strokeStyle = C.miss; m.beginPath(); for (const k of toFetch) { const c = centerOf(k); hexPath(m, c.x, c.y, S * 0.8); } m.stroke();
+  m.strokeStyle = C.fly; m.beginPath(); for (const k of inflight) { const c = centerOf(k); hexPath(m, c.x, c.y, S * 0.8); } m.stroke();
+
+  if (probe) {
+    const age = rt - probe.born;
+    if (age > 1.4) probe = null;
+    else {
+      m.globalAlpha = 1 - age / 1.4; m.strokeStyle = C.accent;
+      if (probe.mode === 'ray') {
+        m.lineWidth = 1; m.beginPath(); m.moveTo(probe.x, probe.y); m.lineTo(MW, probe.y); m.stroke();
+        m.fillStyle = C.accent;
+        for (const xc of probe.xs) { m.beginPath(); m.arc(xc, probe.y, 2.4, 0, 7); m.fill(); }
+      } else {
+        const c = centerOf(probe.k); m.lineWidth = 2; m.beginPath(); hexPath(m, c.x, c.y, S * 1.05); m.stroke();
+      }
+      m.globalAlpha = 1;
+    }
+  }
+  for (let i = pings.length - 1; i >= 0; i--) {
+    const p = pings[i], age = (rt - p.born) / 1.8;
+    if (age > 1) { pings.splice(i, 1); continue; }
+    m.globalAlpha = 1 - age; m.fillStyle = C[p.color];
+    m.beginPath(); m.arc(p.x, p.y, 2.2, 0, 7); m.fill();
+    m.strokeStyle = C[p.color]; m.lineWidth = 1; m.beginPath(); m.arc(p.x, p.y, 2.5 + age * 8, 0, 7); m.stroke();
+  }
+  m.globalAlpha = 1;
+}
+
+// ═════════════════════════ flow svg ═════════════════════════
+const svg = $('#flow'), NS = 'http://www.w3.org/2000/svg';
+function el(tag, attrs, parent = svg) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  parent.appendChild(e); return e;
+}
+const defs = el('defs', {});
+const mk = el('marker', { id: 'ah', viewBox: '0 0 10 10', refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: 'auto-start-reverse' }, defs);
+el('path', { d: 'M0,0 L10,5 L0,10 z', style: 'fill:var(--node-b)' }, mk);
+const gLane = el('g', {}), gLine = el('g', {}), gNode = el('g', {}), gTok = el('g', {});
+
+el('rect', { class: 'lane', x: 8, y: 6, width: 984, height: 166, rx: 8 }, gLane);
+el('text', { class: 'lane-txt', x: 22, y: 22 }, gLane).textContent = 'HOT PATH, PER REQUEST, <3MS';
+el('rect', { class: 'lane', x: 8, y: 250, width: 984, height: 84, rx: 8 }, gLane);
+const refT = el('text', { class: 'lane-txt', x: 22, y: 266 }, gLane);
+
+const N = {
+  R: { x: 90,  y: 106, w: 120, t: 'HTTP Request', s: '(lat, lng)' },
+  C: { x: 240, y: 106, w: 130, t: 'lat/lng → H3 cell', s: 'O(1) arithmetic' },
+  K: { x: 400, y: 106, w: 140, t: '', s: '', d: 1 },
+  G: { x: 560, y: 106, w: 120, t: 'Redis GET', s: 'key = cell ID', d: 1 },
+  A: { x: 720, y: 72,  w: 130, t: 'Attach weather', s: 'cache hit' },
+  S: { x: 720, y: 140, w: 150, t: 'SADD cells_to_fetch', s: 'cache miss' },
+  F: { x: 905, y: 106, w: 130, t: 'Forward upstream', s: '' },
+  D: { x: 715, y: 215, w: 240, h: 46, t: 'Redis', s: '', d: 1 },
+  T: { x: 90,  y: 300, w: 120, t: 'Ticker', s: '' },
+  P: { x: 255, y: 300, w: 150, t: 'SPOP cells_to_fetch', s: '' },
+  L: { x: 425, y: 300, w: 130, t: 'Cell → lat/lng', s: 'H3 cell center' },
+  W: { x: 600, y: 300, w: 130, t: 'Weather API', s: 'slow, seconds, batched' },
+  X: { x: 790, y: 300, w: 150, t: 'SET weather cache', s: '' },
+};
+const LINKS = {
+  rc: [[150,106],[175,106]], ck: [[305,106],[330,106]], kg: [[470,106],[500,106]],
+  skip: [[400,87],[400,42],[905,42],[905,87]],
+  hit: [[560,87],[560,72],[655,72]], af: [[785,72],[905,72],[905,87]],
+  miss: [[560,125],[560,140],[645,140]], sf: [[795,140],[905,140],[905,125]],
+  get: [[530,125],[530,205],[595,205]], sadd: [[720,159],[720,192]],
+  tp: [[150,300],[180,300]], pl: [[330,300],[360,300]], lw: [[490,300],[535,300]], wx: [[665,300],[715,300]],
+  spop: [[595,225],[255,225],[255,281]], set: [[790,281],[790,238]],
+};
+const DASHED = new Set(['get', 'sadd', 'spop', 'set']);
+const linkEl = {}, linkLast = {};
+for (const [id, pts] of Object.entries(LINKS)) {
+  linkEl[id] = el('polyline', { class: 'ln' + (DASHED.has(id) ? ' dash' : ''), points: pts.join(' '), 'marker-end': 'url(#ah)' }, gLine);
+  linkLast[id] = -9;
+}
+const label = (x, y, t, a = 'start') => (el('text', { class: 'lbl', x, y, 'text-anchor': a }, gLine).textContent = t);
+label(650, 36, 'not targeted', 'middle'); label(485, 100, 'yes', 'middle');
+label(566, 66, 'hit'); label(566, 154, 'miss');
+label(524, 168, 'GET', 'end'); label(727, 180, 'SADD');
+label(425, 220, 'SPOP', 'middle'); label(797, 262, 'SET');
+
+for (const [id, n] of Object.entries(N)) {
+  const h = n.h || 38;
+  n.g = el('g', { class: 'n' + (n.d ? ' d' : '') }, gNode);
+  el('rect', { x: n.x - n.w / 2, y: n.y - h / 2, width: n.w, height: h, rx: 6 }, n.g);
+  n.tEl = el('text', { class: 't', x: n.x, y: n.y - 2 }, n.g);
+  n.sEl = el('text', { class: 's', x: n.x, y: n.y + 11 }, n.g);
+  n.last = -9; n.tv = n.sv = null;
+}
+function setNode(id, t, s) {
+  const n = N[id];
+  if (t !== n.tv) { n.tEl.textContent = n.tv = t; }
+  if (s !== n.sv) { n.sEl.textContent = n.sv = s; }
+}
+
+// ═════════════════════════ tokens ═════════════════════════
+const toks = [];
+function mkTok(color, x, y, r = 5, txt) {
+  const g = el('g', {}, gTok);
+  const c = el('circle', { r }, g); c.style.fill = `var(--${color})`;
+  let t = null; if (txt != null) { t = el('text', { class: 'tok-t' }, g); t.textContent = txt; }
+  const tok = { g, c, t, x, y, q: [], wait: 0 };
+  toks.push(tok); return tok;
+}
+const colorTok = (tok, color) => (tok.c.style.fill = `var(--${color})`);
+const W = (id, extra = {}) => ({ x: N[id].x, y: N[id].y, n: id, ...extra });
+const P = (x, y, extra = {}) => ({ x, y, ...extra });
+function stepTok(t, dt) {
+  if (t.wait > 0) { t.wait -= dt; return; }
+  let move = TOK_SPEED * dt;
+  while (move > 0 && t.q.length) {
+    const w = t.q[0], dx = w.x - t.x, dy = w.y - t.y, d = Math.hypot(dx, dy);
+    if (d <= move) {
+      t.x = w.x; t.y = w.y; move -= d; t.q.shift();
+      if (w.n) N[w.n].last = rt;
+      if (w.l) linkLast[w.l] = rt;
+      if (w.fn) w.fn(t);
+      if (w.wait) { t.wait = w.wait; break; }
+    } else { t.x += dx / d * move; t.y += dy / d * move; move = 0; }
+  }
+  if (!t.q.length && t.wait <= 0) t.dead = true;
+}
+
+// ═════════════════════════ hot path ═════════════════════════
+function checkRegion(x, y, k) {
+  if (mode === 'h3') {
+    return { region: targetSet.get(k) || null, us: 0.3 + Math.random() * 0.15 + (Math.random() < 0.02 ? 0.4 : 0) };
+  }
+  let edges = 0, xs = [], region = null, crossings = 0;
+  for (const name of Object.keys(REGIONS)) {
+    if (!enabled[name]) continue;
+    const c = rayCrossings(x, y, REGIONS[name].pix);
+    edges += REGIONS[name].edges; xs = xs.concat(c);
+    if (c.length % 2) { region = name; crossings = c.length; break; }
+  }
+  const us = edges * 0.0035 * (0.85 + Math.random() * 0.4 + (Math.random() < 0.05 ? 0.8 : 0));
+  return { region, us, edges, xs, crossings };
+}
+
+function spawnReq(la, ln) {
+  la = Math.max(LAT1 + 1, Math.min(LAT0 - 1, la));
+  ln = ((ln + 540) % 360) - 180;
+  const [x, y] = proj(la, ln), [q, r] = pixToHex(x, y), k = key(q, r), id = cellId(q, r);
+  const n = ++st.req;
+  const chk = checkRegion(x, y, k);
+  push(lat[mode], chk.us);
+  probe = { x, y, k, mode, xs: chk.xs || [], born: rt };
+  const ping = { x, y, color: 'accent', born: rt };
+  pings.push(ping);
+
+  const head = `#${n} (${la.toFixed(2)}, ${ln.toFixed(2)})`;
+  const how = mode === 'h3'
+    ? `cell <b>${id}</b> → map lookup ${fmtUs(chk.us)}`
+    : `ray hit ${chk.xs.length} edges${chk.region ? ` (${chk.crossings}, odd)` : ''}, scanned ${fmt(chk.edges || 0)} edges in ${fmtUs(chk.us)}`;
+  const dwell = mode === 'ray' ? Math.min(1.1, chk.us / 70) : 0.04;
+
+  const tok = mkTok('accent', N.R.x, N.R.y);
+  N.R.last = rt;
+  const finish = ms => P(N.F.x, N.F.y, { n: 'F', fn: () => { if (ms != null) push(aug, ms); } });
+  tok.q = [P(N.C.x, N.C.y, { n: 'C', l: 'rc' }), P(N.K.x, N.K.y, { n: 'K', l: 'ck', wait: dwell, fn: () => {
+    if (!chk.region) {
+      colorTok(tok, 'skip'); ping.color = 'skip';
+      detail(`${head} → ${how} → <b>not targeted</b> → forward as is`);
+      tok.q.push(P(400, 42, { l: 'skip' }), P(905, 42), finish(null));
+      return;
+    }
+    st.tgt++;
+    tok.q.push(P(N.G.x, N.G.y, { n: 'G', l: 'kg', fn: () => {
+      N.D.last = rt; linkLast.get = rt;
+      const rtt = () => 0.25 + Math.random() * 0.35 + (Math.random() < 0.03 ? 1 : 0);
+      const exp = cache.get(k);
+      if (exp && exp > sim) {
+        st.hit++; colorTok(tok, 'hit'); ping.color = 'hit';
+        detail(`${head} → ${how} → targeted (${chk.region}) → GET <b>hit</b> → weather attached`);
+        tok.q.push(P(560, 72, { l: 'hit' }), P(N.A.x, N.A.y, { n: 'A' }), P(905, 72, { l: 'af' }), finish(chk.us / 1000 + rtt()));
+      } else {
+        st.miss++; colorTok(tok, 'miss'); ping.color = 'miss';
+        const dup = toFetch.has(k);
+        detail(`${head} → ${how} → targeted (${chk.region}) → GET <b>miss</b> → SADD ${dup ? '(already in set, ignored)' : 'new cell'} → forward without weather`);
+        tok.q.push(P(560, 140, { l: 'miss' }), P(N.S.x, N.S.y, { n: 'S', fn: () => {
+          if (toFetch.has(k)) st.dup++; else toFetch.add(k);
+          linkLast.sadd = rt;
+          const m = mkTok('miss', N.S.x, N.S.y, 3);
+          m.q = [P(720, 192, { n: 'D' })];
+        } }), P(905, 140, { l: 'sf' }), finish(chk.us / 1000 + rtt() + rtt()));
+      }
+    } }));
+  } })];
+}
+
+// ═════════════════════════ background refresher ═════════════════════════
+function refresherTick() {
+  const tok = mkTok('fly', N.T.x, N.T.y, 7, '');
+  N.T.last = rt;
+  tok.q = [P(N.P.x, N.P.y, { n: 'P', l: 'tp', fn: () => {
+    linkLast.spop = rt; N.D.last = rt;
+    const all = [...toFetch], picked = [];
+    while (picked.length < batch && all.length) picked.push(all.splice(Math.floor(Math.random() * all.length), 1)[0]);
+    if (!picked.length) { colorTok(tok, 'skip'); tok.t.textContent = '0'; tok.wait = 0.3; return; }
+    for (const k of picked) { toFetch.delete(k); inflight.add(k); }
+    tok.t.textContent = picked.length;
+    const apiSim = 1.5 + Math.random() * 3;
+    tok.q.push(P(N.L.x, N.L.y, { n: 'L', l: 'pl' }), P(N.W.x, N.W.y, { n: 'W', l: 'lw', wait: apiSim / TIMESCALE, fn: () => st.api++ }),
+      P(N.X.x, N.X.y, { n: 'X', l: 'wx', fn: () => {
+        for (const k of picked) { cache.set(k, sim + ttl * 60); inflight.delete(k); }
+        st.fetched += picked.length;
+      } }), P(790, 238, { n: 'D', l: 'set' }));
+  } })];
+}
+
+// ═════════════════════════ offline build ═════════════════════════
+function rebuild() {
+  const set = polyfill();
+  const order = [...set.keys()].sort((a, b) => centerOf(a).x - centerOf(b).x);
+  build = { set, order, t: 0 };
+}
+
+// ═════════════════════════ ui ═════════════════════════
+const TILES = [
+  ['req', 'Requests (sampled)'], ['tgt', 'Targeted'], ['hr', 'Cache hit rate'],
+  ['chk', 'Region check p50 / p99'], ['cpu', 'Check CPU at 100k req/s'], ['aug', 'Augmentation p99 (budget 3ms)'],
+  ['tf', 'cells_to_fetch'], ['api', 'Weather API calls'],
+];
+const tileEl = {};
+for (const [id, k] of TILES) {
+  const d = document.createElement('div'); d.className = 'tile';
+  d.innerHTML = `<div class="k">${k}</div><div class="v"></div>`;
+  $('#tiles').appendChild(d); tileEl[id] = d.querySelector('.v');
+}
+let lastDetail = '';
+const detail = h => (lastDetail = h);
+
+function updateUI() {
+  const pt = st.req ? Math.round(st.tgt / st.req * 100) : 0;
+  const hr = st.hit + st.miss ? Math.round(st.hit / (st.hit + st.miss) * 100) : 0;
+  const L = lat[mode], p50 = pct(L, 0.5), p99 = pct(L, 0.99), ap = pct(aug, 0.99);
+  tileEl.req.textContent = fmt(st.req);
+  tileEl.tgt.innerHTML = `${fmt(st.tgt)} <small>${pt}%</small>`;
+  tileEl.hr.innerHTML = `${hr}% <small>${fmt(st.hit)} hit / ${fmt(st.miss)} miss</small>`;
+  tileEl.chk.innerHTML = L.length ? `${fmtUs(p50)} <small>/ ${fmtUs(p99)}</small>` : '-';
+  const cores = p50 * 100000 / 1e6;
+  tileEl.cpu.innerHTML = L.length ? `<span class="${cores > 1 ? 'bad' : 'good'}">${cores < 0.1 ? cores.toFixed(3) : cores.toFixed(1)}</span> <small>cores</small>` : '-';
+  tileEl.aug.innerHTML = aug.length ? `<span class="${ap < 3 ? 'good' : 'bad'}">${ap.toFixed(2)} ms</span>` : '-';
+  tileEl.tf.innerHTML = `${fmt(toFetch.size)} <small>${fmt(inflight.size)} in flight, ${fmt(st.dup)} dup SADDs absorbed</small>`;
+
+  tileEl.api.innerHTML = `${fmt(st.api)} <small>${fmt(st.fetched)} cells fetched</small>`;
+  $('#detail').innerHTML = lastDetail || 'Waiting for the first request...';
+
+  const chips = [...toFetch];
+  $('#chips').innerHTML = chips.slice(0, 18).map(k => {
+    const [q, r] = k.split(',').map(Number); return `<span class="chip">${cellId(q, r)}</span>`;
+  }).join('') + (chips.length > 18 ? `<span class="chip more">+${chips.length - 18} more</span>` : '') +
+    (chips.length ? '' : '<span class="chip more">empty</span>');
+}
+
+function updateFlowLabels() {
+  const ray = mode === 'ray';
+  const edges = Object.keys(REGIONS).filter(n => enabled[n]).reduce((a, n) => a + REGIONS[n].edges, 0);
+  setNode('K', ray ? 'Ray casting' : 'In Target Cell Set?', ray ? `up to ${fmt(edges)} edges` : 'map[uint64]bool');
+  setNode('C', N.C.t, ray ? 'not used' : 'O(1) arithmetic');
+  N.C.g.classList.toggle('dim', ray);
+  setNode('D', 'Redis', `weather cache: ${fmt(cache.size)} cells  |  cells_to_fetch: ${fmt(toFetch.size)}`);
+  setNode('T', 'Ticker', `every ${tick}s, next in ${Math.max(0, Math.ceil(nextTick - sim))}s`);
+  setNode('P', N.P.t, `up to ${batch} at a time`);
+  setNode('X', N.X.t, `key = cell ID, TTL ${ttl} min`);
+  refT.textContent = `BACKGROUND REFRESHER, EVERY ${tick}S`;
+  for (const id in N) setNode(id, N[id].tv ?? N[id].t, N[id].sv ?? N[id].s);
+}
+
+// controls
+$('#play').onclick = () => { paused = !paused; $('#play').textContent = paused ? 'Play' : 'Pause'; };
+$('#speed').onchange = e => (speed = +e.target.value);
+document.querySelectorAll('.seg button').forEach(b => b.onclick = () => {
+  mode = b.dataset.mode;
+  document.querySelectorAll('.seg button').forEach(x => x.classList.toggle('on', x === b));
+});
+document.querySelectorAll('.chk').forEach(b => b.onclick = () => {
+  enabled[b.dataset.r] = !enabled[b.dataset.r];
+  b.classList.toggle('on', enabled[b.dataset.r]);
+  rebuild();
+});
+for (const id of ['rate', 'tick', 'batch', 'ttl']) {
+  const inp = $('#' + id), out = $('#' + id + 'O');
+  const unit = { rate: '/s', tick: 's', batch: '', ttl: 'm' }[id];
+  const set = () => {
+    const v = +inp.value; out.textContent = v + unit;
+    if (id === 'rate') rate = v;
+    if (id === 'tick') { tick = v; nextTick = Math.min(nextTick, sim + v); }
+    if (id === 'batch') batch = v;
+    if (id === 'ttl') { for (const [k, e] of cache) cache.set(k, Math.min(e, sim + v * 60)); ttl = v; }
+  };
+  inp.oninput = set; set();
+}
+$('#rebuild').onclick = rebuild;
+$('#burst').onclick = () => {
+  const name = Object.keys(REGIONS).find(n => enabled[n]) || 'US';
+  const [la, ln] = BURST_CITY[name];
+  const [q, r] = pixToHex(...proj(la, ln));
+  cache.delete(key(q, r));
+  for (let i = 0; i < 30; i++) scheduled.push({ at: rt + i * 0.05 / speed, la, ln });
+};
+map.addEventListener('click', e => {
+  const b = map.getBoundingClientRect();
+  const x = (e.clientX - b.left) / b.width * MW, y = (e.clientY - b.top) / b.height * MH;
+  spawnReq(...unproj(x, y));
+});
+
+function pickCity() {
+  let r = Math.random() * cityTotal;
+  for (const c of CITIES) { r -= c[2]; if (r <= 0) return c; }
+  return CITIES[0];
+}
+const gauss = () => Math.sqrt(-2 * Math.log(1 - Math.random())) * Math.cos(2 * Math.PI * Math.random());
+
+// ═════════════════════════ main loop ═════════════════════════
+let prev = performance.now(), uiAcc = 0;
+function frame(ts) {
+  const real = Math.min(0.05, (ts - prev) / 1000); prev = ts;
+  rt += real;
+  const dt = paused ? 0 : real * speed;
+  sim += dt * TIMESCALE;
+
+  if (build) {
+    build.t += real / 1.8;
+    const t = build.t;
+    ['st0', 'st1', 'st2', 'st3'].forEach((s, i) => $('#' + s).classList.toggle('on', t >= [0, 0.25, 0.75, 0.95][i] && t < [0.25, 0.75, 0.95, 1.6][i]));
+    $('#nCells').textContent = fmt(Math.floor(Math.max(0, Math.min(1, (t - 0.25) / 0.5)) * build.order.length));
+    if (t >= 1) { targetSet = build.set; $('#nCells').textContent = fmt(targetSet.size); }
+    if (t >= 1.6) { build = null; ['st0', 'st1', 'st2', 'st3'].forEach(s => $('#' + s).classList.remove('on')); }
+    renderStatic();
+  }
+
+  if (!paused) {
+    spawnAcc += dt * rate;
+    while (spawnAcc >= 1) {
+      spawnAcc--;
+      const [la, ln] = pickCity();
+      spawnReq(la + gauss() * 1.3, ln + gauss() * 1.6);
+    }
+    for (let i = scheduled.length - 1; i >= 0; i--) {
+      if (scheduled[i].at <= rt) { const s = scheduled.splice(i, 1)[0]; spawnReq(s.la + gauss() * 0.02, s.ln + gauss() * 0.02); }
+    }
+    if (sim >= nextTick) { nextTick = sim + tick; refresherTick(); }
+  }
+
+  for (let i = toks.length - 1; i >= 0; i--) {
+    const t = toks[i]; stepTok(t, dt);
+    if (t.dead) { t.g.remove(); toks.splice(i, 1); continue; }
+    t.g.setAttribute('transform', `translate(${t.x.toFixed(1)},${t.y.toFixed(1)})`);
+  }
+  for (const id in N) N[id].g.classList.toggle('on', rt - N[id].last < 0.18);
+  for (const id in linkEl) linkEl[id].classList.toggle('on', rt - linkLast[id] < 0.25);
+
+  drawMap();
+  uiAcc += real;
+  if (uiAcc > 0.2) { uiAcc = 0; updateUI(); updateFlowLabels(); }
+  requestAnimationFrame(frame);
+}
+
+readColors();
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { readColors(); renderStatic(); });
+window.addEventListener('resize', resize);
+resize();
+rebuild();
+updateFlowLabels();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

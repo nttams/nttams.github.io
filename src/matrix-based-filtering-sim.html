@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Matrix-Based Filtering Simulator</title>
+<style>
+  :root {
+    --bg:#fafafa; --panel:#fff; --ink:#2d2d2d; --muted:#888; --line:#d8d8d8;
+    --node:#f5f5f5; --node-b:#c0c0c0; --dec:#e8e8e8; --dec-b:#aaa;
+    --hit:#2f9e6b; --miss:#e0802b; --accent:#3b6fd8; --fly:#8a63d2;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg:#1c1d21; --panel:#24262b; --ink:#e4e4e4; --muted:#9a9a9a; --line:#3a3c42;
+      --node:#2c2e34; --node-b:#4f525a; --dec:#34373e; --dec-b:#666a74;
+      --hit:#4cc38a; --miss:#f0954a; --accent:#6b95ef; --fly:#a68bec;
+    }
+  }
+  *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--ink); font-family:system-ui,sans-serif; font-size:13px; padding:12px; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:12px 14px; margin-bottom:12px; }
+  .lane-t { font-size:10px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:8px; }
+  .hint { font-size:11px; color:var(--muted); margin-bottom:8px; line-height:1.45; }
+  code, .mono { font-family:ui-monospace,Menlo,monospace; }
+
+  .bar { display:flex; flex-wrap:wrap; gap:10px 16px; align-items:center; }
+  .bar h1 { font-size:14px; font-weight:700; margin-right:auto; }
+  .grp { display:flex; align-items:center; flex-wrap:wrap; gap:6px; font-size:12px; color:var(--muted); }
+  .grp input[type=range] { width:110px; accent-color:var(--accent); }
+  .grp output { color:var(--ink); min-width:48px; font-variant-numeric:tabular-nums; }
+  button, select { font:inherit; font-size:12px; color:var(--ink); background:var(--node); border:1px solid var(--node-b); border-radius:5px; padding:4px 10px; cursor:pointer; }
+  button:hover { border-color:var(--accent); }
+  .chk.on { background:var(--accent); border-color:var(--accent); color:#fff; }
+
+  /* rules matrix */
+  .mwrap { overflow-x:auto; }
+  table.mx { border-collapse:separate; border-spacing:2px; margin:0 auto; }
+  table.mx th { font-size:10.5px; font-weight:600; color:var(--muted); padding:2px 0; }
+  table.mx th.grp-h { text-transform:uppercase; letter-spacing:.5px; font-size:9.5px; border-bottom:1px solid var(--line); }
+  table.mx th.req { color:var(--accent); }
+  table.mx td.id { font-size:11px; color:var(--muted); text-align:right; padding-right:6px; font-variant-numeric:tabular-nums; }
+  table.mx td.c { padding:0; }
+  table.mx td.c button { width:34px; height:22px; padding:0; font-size:13px; font-weight:700; border-radius:4px; border:1px solid var(--line); background:var(--node); color:var(--ink); }
+  table.mx td.c button.s1 { background:var(--hit); border-color:var(--hit); color:#fff; }
+  table.mx td.c button.s2 { background:var(--miss); border-color:var(--miss); color:#fff; }
+  table.mx td.c button.s3 { background:linear-gradient(90deg,var(--hit) 50%,var(--miss) 50%); border-color:var(--dec-b); color:#fff; }
+  table.mx td.c.req button { outline:2px solid var(--accent); outline-offset:-1px; }
+  table.mx tr.out td.c button, table.mx tr.out td.id { opacity:.3; }
+  table.mx tr.match td.id { color:var(--hit); font-weight:700; }
+  table.mx tr.match td.c button { box-shadow:0 0 0 1px var(--hit); }
+  .sp { width:8px; }
+
+  /* bit rows */
+  .brow { display:flex; align-items:center; gap:8px; margin:2px 0; }
+  .lb { flex:0 0 190px; font-family:ui-monospace,Menlo,monospace; font-size:11px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .bits { flex:1; min-width:0; display:grid; grid-template-columns:repeat(14,minmax(0,1fr)); gap:2px; }
+  .b { display:block; font-style:normal; height:18px; line-height:16px; text-align:center; font-size:10px; border-radius:3px; background:var(--node); border:1px solid var(--line); color:var(--muted); font-family:ui-monospace,Menlo,monospace; }
+  .b.one { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .b.h { background:none; border-color:transparent; height:14px; line-height:14px; font-size:9.5px; }
+  .brow.hl .lb { color:var(--ink); font-weight:700; }
+  .brow.cur .b { box-shadow:0 0 0 1.5px var(--fly); }
+  .brow.new { animation:flash .9s ease-out; }
+  .brow.res .b.one { background:var(--hit); border-color:var(--hit); }
+  .brow.res .lb { color:var(--ink); }
+  .b.k1, .b.k2, .b.k3, .b.k4 { background:none; color:var(--ink); }
+  .b.k2 { border-color:var(--miss); } .b.k3 { border-color:var(--hit); } .b.k4 { border-color:var(--accent); }
+  @keyframes flash { from { background:color-mix(in srgb,var(--fly) 30%,transparent); } to { background:transparent; } }
+  .fblock { border:1px solid var(--line); border-radius:6px; padding:6px 8px; margin-bottom:8px; opacity:.55; transition:opacity .2s, border-color .2s; }
+  .fblock.in { opacity:1; }
+  .fblock.cur { border-color:var(--fly); opacity:1; }
+  .fblock .ft { font-size:11px; font-weight:700; margin-bottom:3px; }
+  .fblock .ft small { font-weight:400; color:var(--muted); }
+  .cases { display:flex; flex-wrap:wrap; gap:4px 12px; margin:6px 0 2px; font-size:11px; color:var(--muted); }
+  .cases b { color:var(--ink); }
+  .cases .on { color:var(--ink); }
+
+  /* flow svg */
+  svg#flow { display:block; width:100%; height:auto; }
+  .n rect { fill:var(--node); stroke:var(--node-b); stroke-width:1.5; transition:stroke .1s; }
+  .n.d rect { fill:var(--dec); stroke:var(--dec-b); }
+  .n.on rect { stroke:var(--accent); stroke-width:2.5; }
+  .n .t { font-size:12px; fill:var(--ink); text-anchor:middle; }
+  .n .s { font-size:9.5px; fill:var(--muted); text-anchor:middle; font-family:ui-monospace,Menlo,monospace; }
+  .ln { fill:none; stroke:var(--node-b); stroke-width:1.5; }
+  .ln.on { stroke:var(--accent); }
+  .lane { fill:none; stroke:var(--line); }
+  .lane-txt { font-size:9px; font-weight:700; fill:var(--muted); letter-spacing:1px; }
+  .tok-t { font-size:9px; font-weight:700; fill:#fff; text-anchor:middle; dominant-baseline:central; pointer-events:none; }
+  .steps { display:flex; flex-wrap:wrap; gap:4px; margin:8px 0; }
+  .stp { font-size:10.5px; border:1px solid var(--line); border-radius:10px; padding:1px 7px; color:var(--muted); }
+  .stp.done { color:var(--ink); }
+  .stp.now { border-color:var(--accent); color:var(--accent); font-weight:700; }
+
+  /* stats */
+  .tiles { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:8px; }
+  .tile { border:1px solid var(--line); border-radius:6px; padding:7px 10px; }
+  .tile .k { font-size:10.5px; color:var(--muted); }
+  .tile .v { font-size:17px; font-weight:600; font-variant-numeric:tabular-nums; margin-top:2px; }
+  .tile .v small { font-size:11px; font-weight:400; color:var(--muted); }
+  .good { color:var(--hit); } .bad { color:var(--miss); }
+  #detail { margin-top:10px; font-size:12px; line-height:1.5; min-height:54px; font-family:ui-monospace,Menlo,monospace; color:var(--muted); }
+  #detail b { color:var(--ink); font-weight:600; }
+  .chips { display:flex; flex-wrap:wrap; gap:4px; margin-top:6px; min-height:22px; }
+  .chip { font-family:ui-monospace,Menlo,monospace; font-size:10.5px; border:1px solid var(--hit); color:var(--hit); border-radius:4px; padding:1px 5px; }
+  .chip.more { border-color:var(--line); color:var(--muted); }
+
+  /* compare */
+  .cmp { margin-top:10px; }
+  .cr { display:grid; grid-template-columns:150px 1fr 90px; gap:8px; align-items:center; margin:5px 0; font-size:12px; }
+  .track { height:14px; background:var(--node); border:1px solid var(--line); border-radius:4px; overflow:hidden; }
+  .fill { height:100%; width:0; }
+  .cr .val { font-variant-numeric:tabular-nums; text-align:right; font-family:ui-monospace,Menlo,monospace; font-size:11.5px; }
+
+  @media (max-width:560px) {
+    .brow { flex-wrap:wrap; gap:2px; }
+    .lb { flex:0 0 100%; }
+    .cr { grid-template-columns:1fr 80px; }
+    .cr .track { grid-column:1 / -1; grid-row:2; }
+    table.mx td.c button { width:26px; }
+    .grp input[type=range] { width:90px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="card bar">
+  <h1>Matrix-Based Filtering</h1>
+  <div class="grp">Request
+    <select id="sCountry"></select><select id="sLanguage"></select><select id="sDevice"></select>
+    <button id="rand">Random request</button></div>
+  <div class="grp"><button id="play">Pause</button><button id="step">Step</button>
+    <select id="speed"><option value="0.5">0.5x</option><option value="1" selected>1x</option><option value="2">2x</option><option value="4">4x</option></select>
+    <button class="chk on" id="loop" title="After each run, pick a new random request">Loop random</button></div>
+</div>
+
+<div class="card">
+  <div class="lane-t">Campaign targeting rules (14 campaigns)</div>
+  <div class="hint">Click a cell to edit: blank (no rule), <b style="color:var(--hit)">+</b> include, <b style="color:var(--miss)">&minus;</b> exclude, both. Each campaign has a fixed ID. Bit <code>i</code> in every bitset below stands for campaign <code>i</code>. Rows fade when a filter removes them and turn green when they match.</div>
+  <div class="mwrap"><table class="mx" id="mx"></table></div>
+  <div style="margin-top:8px"><button id="reset">Reset rules</button></div>
+</div>
+
+<div class="card">
+  <div class="lane-t">Filter indexes, built from the rules above</div>
+  <div class="hint">Each filter keeps <code>include_map</code>, <code>exclude_map</code> and <code>empty_include_bitset</code>. Bold rows are the values of the current request. The purple outline marks the rows used by the current step.</div>
+  <div id="index"></div>
+</div>
+
+<div class="card">
+  <div class="lane-t">One bid request, step by step</div>
+  <svg id="flow" viewBox="0 0 1000 250"></svg>
+  <div class="steps" id="steps"></div>
+  <div id="work"></div>
+  <div id="detail">Waiting for the first request...</div>
+  <div class="lane-t" style="margin-top:10px;margin-bottom:0">Campaign result</div>
+  <div class="chips" id="chips"></div>
+</div>
+
+<div class="card">
+  <div class="tiles" id="tiles"></div>
+</div>
+
+<div class="card">
+  <div class="lane-t">Naive loop vs bitsets, as campaigns grow (modeled counts)</div>
+  <div class="bar">
+    <div class="grp">Campaigns <input type="range" id="nSl" min="0" max="500" value="200"><output id="nO"></output></div>
+    <div class="grp">Rules per campaign <input type="range" id="rSl" min="1" max="50" value="10"><output id="rO"></output></div>
+    <div class="grp">Request attributes <input type="range" id="fSl" min="1" max="20" value="3"><output id="fO"></output></div>
+  </div>
+  <div class="cmp">
+    <div class="cr"><div>Naive loop: rule checks</div><div class="track"><div class="fill" id="b0" style="background:var(--miss)"></div></div><div class="val" id="v0"></div></div>
+    <div class="cr"><div>Bitset: 64-bit word ops</div><div class="track"><div class="fill" id="b1" style="background:var(--accent)"></div></div><div class="val" id="v1"></div></div>
+    <div class="cr"><div>Bitset: whole-set ops</div><div class="track"><div class="fill" id="b2" style="background:var(--hit)"></div></div><div class="val" id="v2"></div></div>
+  </div>
+  <div class="tiles" id="ctiles" style="margin-top:8px"></div>
+  <div class="hint" style="margin-top:8px">Bars use a log scale. Naive loop = campaigns x rules. Bitset = 3 operations per attribute (OR, AND NOT, AND), and each one touches campaigns / 64 words. The number of whole-set ops depends only on the request, not on the campaign count. All numbers here are modeled, not measured.</div>
+</div>
+
+<script>
+// ═════════════════════════ data ═════════════════════════
+const NC = 14, FIL_N = 3, STEPS = 10;
+const FILTERS = [
+  { key:'country',  name:'Location Filter', res:'location_result', vals:['us','jp','sg','eu'] },
+  { key:'language', name:'Language Filter', res:'language_result', vals:['en','fr','vn'] },
+  { key:'device',   name:'Device Filter',   res:'device_result',   vals:['ios','android','web'] },
+];
+const ORDER = [1, 0, 2];          // same order as the post: language, then location, then device
+const PRESET = [
+  ['+us','+en','+ios'], ['-eu','',''], ['+jp','',''], ['+us +sg','+en',''],
+  ['-us','+vn',''], ['','','+android'], ['','','-web'], ['','',''],
+  ['+us +jp -jp','-fr',''], ['','+fr','+web +ios'], ['+sg','+vn','+android'],
+  ['','+en +fr -fr','-ios'], ['+eu','+fr +en',''], ['+jp +sg','','-android'],
+];
+const CASES = [
+  'no include, no exclude: accept all',
+  'no include, has exclude: all except excluded',
+  'has include, no exclude: only included',
+  'has include, has exclude: included but not excluded',
+];
+
+const $ = s => document.querySelector(s);
+const fmt = n => Math.round(n).toLocaleString('en-US');
+const fmtB = b => b < 1024 ? fmt(b) + ' B' : b < 1048576 ? (b / 1024).toFixed(1) + ' KB' : (b / 1048576).toFixed(1) + ' MB';
+const bs = a => a.join('');
+const pop = a => a.reduce((x, y) => x + y, 0);
+const ones = () => Array(NC).fill(1);
+
+let rules, idx, run = null;
+let speed = 1, playing = true, loop = true, acc = 0, endWait = 0;
+const st = { runs: 0, sum: 0, bad: 0 };
+
+function loadPreset() {
+  rules = PRESET.map(row => FILTERS.map((F, f) => {
+    const s = F.vals.map(() => 0);
+    row[f].split(/\s+/).filter(Boolean).forEach(t => { s[F.vals.indexOf(t.slice(1))] |= t[0] === '+' ? 1 : 2; });
+    return s;
+  }));
+}
+function buildIndex() {
+  idx = FILTERS.map((F, f) => ({
+    inc: F.vals.map((_, v) => rules.map(r => (r[f][v] & 1) ? 1 : 0)),
+    exc: F.vals.map((_, v) => rules.map(r => (r[f][v] & 2) ? 1 : 0)),
+    empty: rules.map(r => r[f].some(s => s & 1) ? 0 : 1),
+    cas: rules.map(r => { const hi = r[f].some(s => s & 1), he = r[f].some(s => s & 2); return hi ? (he ? 4 : 3) : (he ? 2 : 1); }),
+  }));
+}
+
+// ═════════════════════════ run (precomputed, revealed step by step) ═════════════════════════
+function startRun(req) {
+  const act = [ones()], fl = [];
+  ORDER.forEach((f, k) => {
+    const v = req[f], A = idx[f].inc[v], E = idx[f].empty;
+    const O = A.map((a, i) => a | E[i]), X = idx[f].exc[v], R = O.map((o, i) => o & (1 - X[i]));
+    fl.push({ f, v, A, E, O, X, R });
+    act.push(act[k].map((a, i) => a & R[i]));
+  });
+  // naive loop for cross-check
+  const naive = rules.map(r => FILTERS.every((F, f) => {
+    const s = r[f], v = req[f], hasInc = s.some(x => x & 1);
+    return (!hasInc || (s[v] & 1)) && !(s[v] & 2);
+  }) ? 1 : 0);
+  run = { req, act, fl, naive, step: 0, counted: false };
+  tok.x = SEQ[0].x; tok.y = SEQ[0].y; tok.q = []; tok.wait = 0;
+  setTok(NC);
+  queueTo(1, NC);
+  $('#sCountry').value = req[0]; $('#sLanguage').value = req[1]; $('#sDevice').value = req[2];
+  refresh();
+}
+const curReq = () => [+$('#sCountry').value, +$('#sLanguage').value, +$('#sDevice').value];
+function randomReq() { return FILTERS.map(F => Math.floor(Math.random() * F.vals.length)); }
+
+function goStep() {
+  if (!run) return;
+  if (run.step >= STEPS) { startRun(curReq()); return; }
+  run.step++;
+  const s = run.step;
+  if (s <= 9) {
+    const k = Math.floor((s - 1) / 3), sub = (s - 1) % 3;
+    if (sub === 0) queueTo(2 + 2 * k, pop(run.act[k]));
+    if (sub === 2) queueTo(3 + 2 * k, pop(run.act[k + 1]));
+  } else {
+    queueTo(8, pop(run.act[3]), 'hit'); queueTo(9, pop(run.act[3]), 'hit');
+    if (!run.counted) {
+      run.counted = true; st.runs++; st.sum += pop(run.act[3]);
+      if (bs(run.act[3]) !== bs(run.naive)) st.bad++;
+    }
+  }
+  refresh();
+}
+
+// ═════════════════════════ rendering ═════════════════════════
+const applied = () => run.step === 0 ? 0 : Math.min(3, Math.floor(run.step / 3));
+const q = v => `"${v}"`;
+
+function brow(label, bits, cls = '') {
+  return `<div class="brow ${cls}"><div class="lb" title="${label.replace(/"/g, '&quot;')}">${label}</div><div class="bits">${bits.map(b => `<i class="b${b ? ' one' : ''}">${b}</i>`).join('')}</div></div>`;
+}
+const hdrRow = () => `<div class="brow"><div class="lb"></div><div class="bits">${[...Array(NC)].map((_, i) => `<i class="b h">${i}</i>`).join('')}</div></div>`;
+
+function renderMatrix() {
+  let h = '<tr><th></th>';
+  FILTERS.forEach((F, f) => { h += `<th class="grp-h" colspan="${F.vals.length}">${F.key}</th>` + (f < 2 ? '<th class="sp"></th>' : ''); });
+  h += '</tr><tr><th></th>';
+  FILTERS.forEach((F, f) => { F.vals.forEach((v, vi) => { h += `<th data-f="${f}" data-v="${vi}">${v}</th>`; }); if (f < 2) h += '<th class="sp"></th>'; });
+  h += '</tr>';
+  for (let c = 0; c < NC; c++) {
+    h += `<tr data-c="${c}"><td class="id">#${c}</td>`;
+    FILTERS.forEach((F, f) => {
+      F.vals.forEach((v, vi) => {
+        const s = rules[c][f][vi];
+        h += `<td class="c" data-f="${f}" data-v="${vi}"><button class="s${s}" data-c="${c}" data-f="${f}" data-v="${vi}" title="#${c} ${F.key} ${v}">${['', '+', '−', '±'][s]}</button></td>`;
+      });
+      if (f < 2) h += '<td class="sp"></td>';
+    });
+    h += '</tr>';
+  }
+  $('#mx').innerHTML = h;
+}
+function updateMatrix() {
+  const k = applied(), a = run.act[k], fin = run.step === STEPS;
+  document.querySelectorAll('#mx tr[data-c]').forEach(tr => {
+    const c = +tr.dataset.c;
+    tr.classList.toggle('out', !a[c]);
+    tr.classList.toggle('match', fin && !!a[c]);
+  });
+  document.querySelectorAll('#mx th[data-f], #mx td.c').forEach(e => {
+    const on = run.req[+e.dataset.f] === +e.dataset.v;
+    e.classList.toggle('req', on);
+  });
+}
+
+function renderIndex() {
+  const s = run.step, fiCur = (s >= 1 && s <= 9) ? Math.floor((s - 1) / 3) : -1, sub = (s - 1) % 3;
+  let h = '';
+  FILTERS.forEach((F, f) => {
+    const order = ORDER.indexOf(f);
+    const cur = order === fiCur, done = s >= 3 * order + 1;
+    const cs = [0, 0, 0, 0, 0]; idx[f].cas.forEach(x => cs[x]++);
+    h += `<div class="fblock${cur ? ' cur' : ''}${done ? ' in' : ''}"><div class="ft">${F.name} <small>(step group ${order + 1} of 3)</small></div>` + hdrRow();
+    F.vals.forEach((v, vi) => {
+      const hl = run.req[f] === vi;
+      h += brow(`include_map[${q(v)}]`, idx[f].inc[vi], (hl ? 'hl ' : '') + (cur && hl && sub === 0 ? 'cur' : ''));
+    });
+    F.vals.forEach((v, vi) => {
+      const hl = run.req[f] === vi;
+      h += brow(`exclude_map[${q(v)}]`, idx[f].exc[vi], (hl ? 'hl ' : '') + (cur && hl && sub === 1 ? 'cur' : ''));
+    });
+    h += brow('empty_include_bitset', idx[f].empty, cur && sub === 0 ? 'cur hl' : '');
+    h += brow('rule case (1 to 4)', idx[f].cas, '').replace(/class="b one"/g, 'class="b"').replace(/<i class="b">(\d)<\/i>/g, (m, d) => `<i class="b k${d}">${d}</i>`);
+    h += '</div>';
+  });
+  h += `<div class="cases">${CASES.map((c, i) => `<span><b>${i + 1}</b> ${c}</span>`).join('')}</div>`;
+  $('#index').innerHTML = h;
+}
+
+function renderWork() {
+  const s = run.step;
+  let h = hdrRow();
+  if (s === 0) {
+    h += brow('active_campaigns', run.act[0], 'new');
+  } else if (s <= 9) {
+    const k = Math.floor((s - 1) / 3), sub = (s - 1) % 3, d = run.fl[k], F = FILTERS[d.f], v = F.vals[d.v];
+    h += brow(`include_map[${q(v)}]`, d.A, 'hl');
+    h += brow('empty_include_bitset', d.E, 'hl');
+    h += brow('= include OR empty', d.O, 'res' + (sub === 0 ? ' new' : ''));
+    if (sub >= 1) {
+      h += brow(`exclude_map[${q(v)}]`, d.X, 'hl' + (sub === 1 ? ' new' : ''));
+      h += brow('= (..) AND NOT excl.', d.R, 'res' + (sub === 1 ? ' new' : ''));
+    }
+    if (sub >= 2) {
+      h += brow('active (before)', run.act[k], '');
+      h += brow(`active AND ${F.res}`, run.act[k + 1], 'res new');
+    }
+    h += brow('rule case (1 to 4)', idx[d.f].cas, '').replace(/class="b one"/g, 'class="b"').replace(/<i class="b">(\d)<\/i>/g, (m, x) => `<i class="b k${x}">${x}</i>`);
+    const cs = [0, 0, 0, 0, 0]; idx[d.f].cas.forEach(x => cs[x]++);
+    h += `<div class="cases">${CASES.map((c, i) => `<span class="${cs[i + 1] ? 'on' : ''}"><b>${i + 1}</b> ${c} (${cs[i + 1]})</span>`).join('')}</div>`;
+  } else {
+    h += brow('active_campaigns (final)', run.act[3], 'res new');
+    h += brow('naive loop result', run.naive, '');
+  }
+  $('#work').innerHTML = h;
+}
+
+const STEP_NAMES = ['start'];
+ORDER.forEach(f => STEP_NAMES.push(FILTERS[f].key + ': OR', FILTERS[f].key + ': AND NOT', FILTERS[f].key + ': AND'));
+STEP_NAMES.push('result');
+function renderSteps() {
+  $('#steps').innerHTML = STEP_NAMES.map((n, i) => `<span class="stp${i < run.step ? ' done' : ''}${i === run.step ? ' now' : ''}">${n}</span>`).join('');
+}
+
+function describe() {
+  const s = run.step, rq = FILTERS.map((F, f) => F.vals[run.req[f]]).join(' / ');
+  if (s === 0) return `Request <b>${rq}</b> arrives. <b>active_campaigns</b> starts as all 1s: ${NC} of ${NC} campaigns are candidates.`;
+  if (s === STEPS) {
+    const ids = run.act[3].map((b, i) => b ? '#' + i : null).filter(Boolean);
+    const same = bs(run.act[3]) === bs(run.naive);
+    return `Final match: <b>${ids.length ? ids.join(', ') : 'none'}</b> (${ids.length} of ${NC}). A naive loop over every campaign gives ${same ? 'the <b>same</b> answer' : '<b>a different answer (bug!)</b>'}.`;
+  }
+  const k = Math.floor((s - 1) / 3), sub = (s - 1) % 3, d = run.fl[k], F = FILTERS[d.f], v = q(F.vals[d.v]);
+  if (sub === 0) return `${F.name}: <b>include_map[${v}] OR empty_include_bitset</b> = <b>${bs(d.O)}</b>. ${pop(d.O)} campaigns accept ${v}.`;
+  if (sub === 1) {
+    const gone = d.O.filter((o, i) => o && d.X[i]).length;
+    return `${F.name}: <b>AND NOT exclude_map[${v}]</b> removes ${gone} campaign${gone === 1 ? '' : 's'} = <b>${bs(d.R)}</b> (${pop(d.R)} left).`;
+  }
+  return `<b>active = active AND ${F.res}</b>: ${pop(run.act[k])} active campaigns become <b>${pop(run.act[k + 1])}</b> = ${bs(run.act[k + 1])}.`;
+}
+
+function updateTiles() {
+  const rq = FILTERS.map((F, f) => F.vals[run.req[f]]).join(' / ');
+  const m = pop(run.act[applied()]);
+  $('#tiles').innerHTML = [
+    ['Request', rq],
+    ['Still active', `${m} <small>of ${NC}</small>`],
+    ['Bitset ops per request', `${FIL_N * 3} <small>${FIL_N} filters x 3 (OR, AND NOT, AND)</small>`],
+    ['Naive rule checks', `${NC * FIL_N} <small>${NC} campaigns x ${FIL_N} attributes</small>`],
+    ['Bitset size', `${NC} bits <small>${Math.ceil(NC / 8)} bytes</small>`],
+    ['Requests run', `${fmt(st.runs)} <small>avg ${st.runs ? (st.sum / st.runs).toFixed(1) : '0'} matched</small>`],
+  ].map(([k, v]) => `<div class="tile"><div class="k">${k}</div><div class="v">${v}</div></div>`).join('');
+  const fin = run.step === STEPS, a = run.act[3];
+  const ids = a.map((b, i) => b ? i : null).filter(x => x !== null);
+  $('#chips').innerHTML = fin ? (ids.length ? ids.map(i => `<span class="chip">campaign #${i}</span>`).join('') : '<span class="chip more">no campaign matches</span>') : '<span class="chip more">waiting for the last step</span>';
+}
+
+function refresh() {
+  updateMatrix(); renderIndex(); renderWork(); renderSteps(); updateTiles();
+  $('#detail').innerHTML = describe();
+  updateNodes();
+}
+
+// ═════════════════════════ flow svg ═════════════════════════
+const svg = $('#flow'), NS = 'http://www.w3.org/2000/svg';
+function el(tag, attrs, parent = svg) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  parent.appendChild(e); return e;
+}
+const defs = el('defs', {});
+const mk = el('marker', { id: 'ah', viewBox: '0 0 10 10', refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: 'auto-start-reverse' }, defs);
+el('path', { d: 'M0,0 L10,5 L0,10 z', style: 'fill:var(--node-b)' }, mk);
+const gLane = el('g', {}), gLine = el('g', {}), gNode = el('g', {}), gTok = el('g', {});
+el('rect', { class: 'lane', x: 8, y: 6, width: 984, height: 238, rx: 8 }, gLane);
+el('text', { class: 'lane-txt', x: 22, y: 22 }, gLane).textContent = 'HOT PATH, ONE BID REQUEST';
+
+const W = 128, H = 40;
+const SEQ = [
+  { x: 75,  y: 70,  t: 'Bid request', s: '' },
+  { x: 240, y: 70,  t: 'active_campaigns', s: '', d: 1 },
+  { x: 405, y: 70,  t: FILTERS[1].name, s: '' },
+  { x: 570, y: 70,  t: 'active = active &', s: FILTERS[1].res, d: 1 },
+  { x: 735, y: 70,  t: FILTERS[0].name, s: '' },
+  { x: 900, y: 70,  t: 'active = active &', s: FILTERS[0].res, d: 1 },
+  { x: 900, y: 190, t: FILTERS[2].name, s: '' },
+  { x: 735, y: 190, t: 'active = active &', s: FILTERS[2].res, d: 1 },
+  { x: 570, y: 190, t: 'Final match', s: '' },
+  { x: 405, y: 190, t: 'Campaign result', s: '' },
+];
+const links = [];
+SEQ.forEach((n, i) => {
+  n.last = -9; n.tv = n.sv = null;
+  n.g = el('g', { class: 'n' + (n.d ? ' d' : '') }, gNode);
+  el('rect', { x: n.x - W / 2, y: n.y - H / 2, width: W, height: H, rx: 6 }, n.g);
+  n.tEl = el('text', { class: 't', x: n.x, y: n.y - 2 }, n.g);
+  n.sEl = el('text', { class: 's', x: n.x, y: n.y + 11 }, n.g);
+  if (i < SEQ.length - 1) {
+    const m = SEQ[i + 1];
+    let pts;
+    if (i < 5) pts = [[n.x + W / 2, n.y], [m.x - W / 2, m.y]];
+    else if (i === 5) pts = [[n.x, n.y + H / 2], [m.x, m.y - H / 2]];
+    else pts = [[n.x - W / 2, n.y], [m.x + W / 2, m.y]];
+    const ln = el('polyline', { class: 'ln', points: pts.join(' '), 'marker-end': 'url(#ah)' }, gLine);
+    links.push({ ln, last: -9 });
+  }
+});
+function setN(i, t, s) {
+  const n = SEQ[i];
+  if (t !== n.tv) n.tEl.textContent = n.tv = t;
+  if (s !== n.sv) n.sEl.textContent = n.sv = s;
+}
+function updateNodes() {
+  const s = run.step, k = applied();
+  setN(0, 'Bid request', FILTERS.map((F, f) => F.vals[run.req[f]]).join(' '));
+  setN(1, 'active_campaigns', bs(run.act[k]));
+  ORDER.forEach((f, o) => {
+    setN(2 + 2 * o, FILTERS[f].name, `value = ${q(FILTERS[f].vals[run.req[f]])}`);
+    setN(3 + 2 * o, 'active = active &', FILTERS[f].res);
+  });
+  setN(8, 'Final match', s === STEPS ? `${pop(run.act[3])} campaigns` : '');
+  setN(9, 'Campaign result', s === STEPS ? 'ready to bid' : '');
+}
+
+// token
+const tok = { g: el('g', {}, gTok), x: SEQ[0].x, y: SEQ[0].y, q: [], wait: 0 };
+tok.c = el('circle', { r: 11 }, tok.g); tok.c.style.fill = 'var(--accent)';
+tok.t = el('text', { class: 'tok-t' }, tok.g);
+function setTok(n, color) { tok.t.textContent = n; tok.c.style.fill = `var(--${color || 'accent'})`; }
+function queueTo(i, count, color) {
+  tok.q.push({ x: SEQ[i].x, y: SEQ[i].y, n: i, l: i - 1, fn: () => setTok(count, color) });
+}
+let rt = 0;
+function stepTok(dt) {
+  if (tok.wait > 0) { tok.wait -= dt; return; }
+  let move = 330 * dt;
+  while (move > 0 && tok.q.length) {
+    const w = tok.q[0], dx = w.x - tok.x, dy = w.y - tok.y, d = Math.hypot(dx, dy);
+    if (d <= move) {
+      tok.x = w.x; tok.y = w.y; move -= d; tok.q.shift();
+      SEQ[w.n].last = rt; if (links[w.l]) links[w.l].last = rt;
+      w.fn();
+    } else { tok.x += dx / d * move; tok.y += dy / d * move; move = 0; }
+  }
+}
+
+// ═════════════════════════ controls ═════════════════════════
+FILTERS.forEach((F, f) => {
+  $('#s' + F.key[0].toUpperCase() + F.key.slice(1)).innerHTML = F.vals.map((v, i) => `<option value="${i}">${v}</option>`).join('');
+});
+['#sCountry', '#sLanguage', '#sDevice'].forEach(id => $(id).onchange = () => {
+  loop = false; $('#loop').classList.remove('on'); playing = true; $('#play').textContent = 'Pause';
+  startRun(curReq());
+});
+$('#rand').onclick = () => { acc = 0; startRun(randomReq()); };
+$('#play').onclick = () => { playing = !playing; $('#play').textContent = playing ? 'Pause' : 'Play'; };
+$('#step').onclick = () => { playing = false; $('#play').textContent = 'Play'; goStep(); };
+$('#speed').onchange = e => (speed = +e.target.value);
+$('#loop').onclick = () => { loop = !loop; $('#loop').classList.toggle('on', loop); };
+$('#reset').onclick = () => { loadPreset(); buildIndex(); renderMatrix(); startRun(run.req); };
+$('#mx').addEventListener('click', e => {
+  const b = e.target.closest('button[data-c]');
+  if (!b) return;
+  const c = +b.dataset.c, f = +b.dataset.f, v = +b.dataset.v;
+  rules[c][f][v] = (rules[c][f][v] + 1) % 4;
+  b.className = 's' + rules[c][f][v];
+  b.textContent = ['', '+', '−', '±'][rules[c][f][v]];
+  buildIndex(); startRun(run.req);
+});
+
+// compare panel (modeled)
+const cmp = { shown: [0, 0, 0] };
+const Nof = () => Math.round(Math.pow(10, 1 + (+$('#nSl').value) / 100));
+function cmpVals() {
+  const N = Nof(), R = +$('#rSl').value, F = +$('#fSl').value;
+  return { N, R, F, naive: N * R, words: F * 3 * Math.ceil(N / 64), ops: F * 3 };
+}
+function cmpUpdate() {
+  const c = cmpVals();
+  $('#nO').textContent = fmt(c.N); $('#rO').textContent = c.R; $('#fO').textContent = c.F;
+  $('#v0').textContent = fmt(c.naive); $('#v1').textContent = fmt(c.words); $('#v2').textContent = fmt(c.ops);
+  $('#ctiles').innerHTML = [
+    ['Bitset size', `${fmtB(c.N / 8)} <small>per bitset</small>`],
+    ['Naive / bitset words', `<span class="good">${fmt(c.naive / c.words)}x</span> <small>fewer steps (modeled)</small>`],
+    ['If campaigns x10', `naive <span class="bad">${fmt(c.naive * 10)}</span> <small>bitset ops stay ${c.ops}</small>`],
+  ].map(([k, v]) => `<div class="tile"><div class="k">${k}</div><div class="v">${v}</div></div>`).join('');
+}
+['nSl', 'rSl', 'fSl'].forEach(id => $('#' + id).oninput = cmpUpdate);
+function cmpAnim() {
+  const c = cmpVals(), tgt = [c.naive, c.words, c.ops].map(v => Math.log10(Math.max(1, v) + 1) / 8);
+  tgt.forEach((t, i) => {
+    cmp.shown[i] += (t - cmp.shown[i]) * 0.15;
+    $('#b' + i).style.width = Math.max(1, cmp.shown[i] * 100) + '%';
+  });
+}
+
+// ═════════════════════════ main loop ═════════════════════════
+let prev = performance.now();
+function frame(ts) {
+  const real = Math.min(0.05, (ts - prev) / 1000); prev = ts;
+  rt += real;
+  stepTok(real * speed);
+  if (playing && run) {
+    if (run.step < STEPS) {
+      acc += real * speed;
+      if (acc >= 1.1) { acc = 0; goStep(); }
+    } else {
+      endWait += real * speed;
+      if (endWait >= 2.2 && loop) { endWait = 0; startRun(randomReq()); }
+    }
+  }
+  if (run.step < STEPS) endWait = 0;
+  tok.g.setAttribute('transform', `translate(${tok.x.toFixed(1)},${(tok.y - 30).toFixed(1)})`);
+  SEQ.forEach(n => n.g.classList.toggle('on', rt - n.last < 0.4));
+  links.forEach(l => l.ln.classList.toggle('on', rt - l.last < 0.5));
+  cmpAnim();
+  requestAnimationFrame(frame);
+}
+
+loadPreset(); buildIndex(); renderMatrix(); cmpUpdate();
+startRun([0, 0, 0]);
+window.__st = st;
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

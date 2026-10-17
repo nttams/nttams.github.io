@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Large Maps vs Go GC Simulator</title>
+<style>
+  :root {
+    --bg:#fafafa; --panel:#fff; --ink:#2d2d2d; --muted:#888; --line:#d8d8d8;
+    --node:#f5f5f5; --node-b:#c0c0c0; --dec:#e8e8e8; --dec-b:#aaa;
+    --target:#cbd6ee; --target-b:#8fa4d4;
+    --hit:#2f9e6b; --miss:#e0802b; --skip:#a3a3a3; --accent:#3b6fd8; --fly:#8a63d2;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg:#1c1d21; --panel:#24262b; --ink:#e4e4e4; --muted:#9a9a9a; --line:#3a3c42;
+      --node:#2c2e34; --node-b:#4f525a; --dec:#34373e; --dec-b:#666a74;
+      --target:#2f3d5c; --target-b:#5873ad;
+      --hit:#4cc38a; --miss:#f0954a; --skip:#7a7a7a; --accent:#6b95ef; --fly:#a68bec;
+    }
+  }
+  *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--ink); font-family:system-ui,sans-serif; font-size:13px; padding:12px; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:12px 14px; margin-bottom:12px; }
+  .lane-t { font-size:10px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:8px; }
+  .note { font-size:11px; color:var(--muted); margin-top:6px; line-height:1.4; }
+
+  .bar { display:flex; flex-wrap:wrap; gap:10px 18px; align-items:center; }
+  .bar h1 { font-size:14px; font-weight:700; margin-right:auto; }
+  .grp { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--muted); }
+  .grp input[type=range] { width:100px; accent-color:var(--accent); }
+  .grp output { color:var(--ink); min-width:34px; font-variant-numeric:tabular-nums; }
+  button, select { font:inherit; font-size:12px; color:var(--ink); background:var(--node); border:1px solid var(--node-b); border-radius:5px; padding:4px 10px; cursor:pointer; }
+  button:hover:not(:disabled) { border-color:var(--accent); }
+  button:disabled { opacity:.5; cursor:default; }
+  .seg { display:inline-flex; }
+  .seg button { border-radius:0; }
+  .seg button:first-child { border-radius:5px 0 0 5px; }
+  .seg button:last-child { border-radius:0 5px 5px 0; border-left:none; }
+  .seg button.on { background:var(--accent); border-color:var(--accent); color:#fff; }
+
+  .rows { margin-top:8px; display:grid; gap:6px; }
+  .brow { display:grid; grid-template-columns:150px 1fr 190px; gap:8px; align-items:center; font-size:11.5px; }
+  .track { height:10px; border-radius:5px; background:var(--node); border:1px solid var(--line); overflow:hidden; }
+  .track i { display:block; height:100%; width:0; background:var(--miss); }
+  .brow span:last-child { font-variant-numeric:tabular-nums; color:var(--muted); }
+
+  .tiles { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:8px; }
+  .tile { border:1px solid var(--line); border-radius:6px; padding:7px 10px; }
+  .tile .k { font-size:10.5px; color:var(--muted); }
+  .tile .v { font-size:17px; font-weight:600; font-variant-numeric:tabular-nums; margin-top:2px; }
+  .tile .v small { font-size:11px; font-weight:400; color:var(--muted); }
+  .good { color:var(--hit); } .bad { color:var(--miss); }
+  .detail { margin-top:10px; font-size:12px; line-height:1.5; min-height:20px; font-family:ui-monospace,Menlo,monospace; color:var(--muted); }
+  .detail b { color:var(--ink); font-weight:600; }
+
+  svg.flow { display:block; width:100%; height:auto; }
+  .n rect { fill:var(--node); stroke:var(--node-b); stroke-width:1.5; transition:stroke .1s; }
+  .n.d rect { fill:var(--dec); stroke:var(--dec-b); }
+  .n.on rect { stroke:var(--accent); stroke-width:2; }
+  .n.hot rect { stroke:var(--miss); stroke-width:2.5; }
+  .n.dim { opacity:.3; }
+  .n .t { font-size:12px; fill:var(--ink); text-anchor:middle; }
+  .n .s { font-size:9.5px; fill:var(--muted); text-anchor:middle; }
+  .ln { fill:none; stroke:var(--node-b); stroke-width:1.5; }
+  .ln.dash { stroke-dasharray:4 3; }
+  .ln.on { stroke:var(--accent); }
+  .ln.off { opacity:.15; }
+  .lbl { font-size:9.5px; fill:var(--muted); }
+  .lane { fill:none; stroke:var(--line); }
+  .lane.grp2 { stroke-dasharray:4 3; }
+  .lane-txt { font-size:9px; font-weight:700; fill:var(--muted); letter-spacing:1px; }
+  .tok-t { font-size:8px; font-weight:700; fill:#fff; text-anchor:middle; dominant-baseline:central; pointer-events:none; }
+  canvas#chart { display:block; width:100%; height:160px; }
+  .legend { display:flex; flex-wrap:wrap; gap:4px 14px; margin-top:8px; font-size:11px; color:var(--muted); }
+  .sw { display:inline-block; width:10px; height:10px; border-radius:50%; vertical-align:-1px; margin-right:4px; }
+  @media (max-width:560px) { .brow { grid-template-columns:1fr; gap:2px; } }
+</style>
+</head>
+<body>
+
+<div class="card bar">
+  <h1>Large Maps vs Go GC</h1>
+  <div class="grp"><button id="play">Pause</button>
+    <select id="speed"><option value="0.5">0.5x</option><option value="1" selected>1x</option><option value="2">2x</option><option value="4">4x</option></select></div>
+  <div class="grp">Design
+    <span class="seg"><button data-mode="old" class="on">In-memory map (old)</button><button data-mode="new">Redis (new)</button></span></div>
+  <div class="grp">Map entries <input type="range" id="entries" min="1" max="20" value="10"><output id="entriesO"></output></div>
+  <div class="grp">GC every <input type="range" id="gcev" min="1" max="5" value="2"><output id="gcevO"></output></div>
+  <div class="grp"><button id="runGc" title="Replay the mark phase animation">Run GC mark phase</button></div>
+</div>
+
+<div class="card">
+  <div class="lane-t">1. What the GC mark phase sees</div>
+  <svg class="flow" id="fa" viewBox="0 0 1000 300"></svg>
+  <div class="rows">
+    <div class="brow"><span>[]byte blob, 1 GB</span><div class="track"><i id="bBlob"></i></div><span id="tBlob">-</span></div>
+    <div class="brow"><span>map[string]string</span><div class="track"><i id="bMap"></i></div><span id="tMap">-</span></div>
+  </div>
+  <div class="note">Mark cost follows the number of pointers, not bytes. Times are modeled from the post's benchmark (1M: 10.2 ms, 10M: 103.3 ms, 20M: 342.6 ms), with straight lines in between. The pointer count is modeled as 2 per entry plus bucket pointers.</div>
+</div>
+
+<div class="card">
+  <div class="lane-t">2. One proxy node, request by request</div>
+  <svg class="flow" id="fb" viewBox="0 0 1000 285"></svg>
+  <div class="note">Each dot stands for 250 requests (about 4,000 QPS per node). Time runs in slow motion so you can see the stalls. Simplified: the whole mark time is treated as a stall, like the post's <code>runtime.GC()</code> measurement.</div>
+</div>
+
+<div class="card">
+  <div class="lane-t">3. Request latency over time (modeled)</div>
+  <canvas id="chart"></canvas>
+  <div class="legend">
+    <span><i class="sw" style="background:var(--accent)"></i>Request</span>
+    <span><i class="sw" style="background:var(--miss)"></i>Stalled by GC</span>
+    <span>Shaded band = GC mark time</span>
+  </div>
+</div>
+
+<div class="card">
+  <div class="lane-t">4. Where the routing rules live (10 Go nodes)</div>
+  <svg class="flow" id="fc" viewBox="0 0 1000 135"></svg>
+  <div class="note">Memory is modeled at 90 bytes per entry (two short strings plus headers and bucket overhead).</div>
+</div>
+
+<div class="card">
+  <div class="tiles" id="tiles"></div>
+  <div class="detail" id="detail">Waiting for the first request...</div>
+  <div class="detail" id="detail2" style="margin-top:2px">Waiting for the first GC cycle...</div>
+</div>
+
+<script>
+// ═════════════════════════ config ═════════════════════════
+const SC = 0.4;              // sim seconds per real second at 1x
+const TOK = 380;             // svg units per real second at 1x
+const SPS = 16;              // sampled request dots per sim second (250 requests each)
+const BYTES_PER_ENTRY = 90;  // modeled
+const BUDGET = 100, YMAX = 400, WIN = 12;
+const MARK_PTS = [[0, 0], [1e6, 10.2], [10e6, 103.3], [20e6, 342.6]];
+
+let speed = 1, paused = false, mode = 'old';
+let entries = 10e6, gcEvery = 2;
+let rt = 0, simT = 0, at = 0, nextGc = 1, spawnAcc = 0, reqN = 0, gcCount = 0;
+let gcUntil = 0, lastNodeFlash = -9;
+const samples = [], gcLog = [];
+
+const $ = s => document.querySelector(s);
+const fmt = n => n.toLocaleString('en-US');
+const markMs = n => {
+  for (let i = 1; i < MARK_PTS.length; i++) {
+    if (n <= MARK_PTS[i][0]) {
+      const [x0, y0] = MARK_PTS[i - 1], [x1, y1] = MARK_PTS[i];
+      return y0 + (y1 - y0) * (n - x0) / (x1 - x0);
+    }
+  }
+  return MARK_PTS[3][1];
+};
+const pointers = n => Math.round(2 * n + n / 6.5);
+const gcStall = () => mode === 'old' && simT < gcUntil;
+const pct = (a, p) => { if (!a.length) return 0; const s = [...a].sort((x, y) => x - y); return s[Math.min(s.length - 1, Math.floor(p * s.length))]; };
+
+// ═════════════════════════ flow helper ═════════════════════════
+const NS = 'http://www.w3.org/2000/svg';
+function el(parent, tag, attrs = {}) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  parent.appendChild(e); return e;
+}
+let FID = 0;
+function Flow(svg) {
+  const id = ++FID, f = { svg, N: {}, ln: {}, ll: {}, toks: [], freeze: null };
+  const defs = el(svg, 'defs');
+  const mk = el(defs, 'marker', { id: 'ah' + id, viewBox: '0 0 10 10', refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: 'auto-start-reverse' });
+  el(mk, 'path', { d: 'M0,0 L10,5 L0,10 z', style: 'fill:var(--node-b)' });
+  f.gLane = el(svg, 'g'); f.gLine = el(svg, 'g'); f.gNode = el(svg, 'g'); f.gTok = el(svg, 'g');
+  f.lane = (x, y, w, h, txt, dash) => {
+    el(f.gLane, 'rect', { class: 'lane' + (dash ? ' grp2' : ''), x, y, width: w, height: h, rx: 8 });
+    return Object.assign(el(f.gLane, 'text', { class: 'lane-txt', x: x + 14, y: y + 16 }), { textContent: txt });
+  };
+  f.node = (nid, o) => {
+    const h = o.h || 38, n = Object.assign({ last: -9, tv: null, sv: null }, o);
+    n.g = el(f.gNode, 'g', { class: 'n' + (o.d ? ' d' : '') });
+    el(n.g, 'rect', { x: o.x - o.w / 2, y: o.y - h / 2, width: o.w, height: h, rx: 6 });
+    n.tEl = el(n.g, 'text', { class: 't', x: o.x, y: o.y - (o.s === undefined ? -4 : 2) });
+    n.sEl = el(n.g, 'text', { class: 's', x: o.x, y: o.y + 11 });
+    f.N[nid] = n; f.set(nid, o.t, o.s || ''); return n;
+  };
+  f.set = (nid, t, s) => {
+    const n = f.N[nid];
+    if (t !== n.tv) n.tEl.textContent = n.tv = t;
+    if (s !== n.sv) n.sEl.textContent = n.sv = s;
+  };
+  f.link = (lid, pts, dash) => {
+    f.ln[lid] = el(f.gLine, 'polyline', { class: 'ln' + (dash ? ' dash' : ''), points: pts.join(' '), 'marker-end': `url(#ah${id})` });
+    f.ll[lid] = -9;
+  };
+  f.label = (x, y, t, a = 'start') => Object.assign(el(f.gLine, 'text', { class: 'lbl', x, y, 'text-anchor': a }), { textContent: t });
+  f.tok = (color, x, y, r = 5, txt) => {
+    const g = el(f.gTok, 'g');
+    const c = el(g, 'circle', { r }); c.style.fill = `var(--${color})`;
+    let t = null; if (txt != null) { t = el(g, 'text', { class: 'tok-t' }); t.textContent = txt; }
+    const tok = { g, c, t, x, y, q: [], wait: 0 };
+    f.toks.push(tok); return tok;
+  };
+  f.color = (tok, color) => (tok.c.style.fill = `var(--${color})`);
+  f.P = (x, y, extra = {}) => ({ x, y, ...extra });
+  f.step = (t, dt) => {
+    if (f.freeze && f.freeze(t)) return;
+    if (t.wait > 0) { t.wait -= dt; return; }
+    let move = TOK * dt;
+    while (move > 0 && t.q.length) {
+      const w = t.q[0], dx = w.x - t.x, dy = w.y - t.y, d = Math.hypot(dx, dy);
+      if (d <= move) {
+        t.x = w.x; t.y = w.y; move -= d; t.q.shift();
+        if (w.n) f.N[w.n].last = rt;
+        if (w.l) f.ll[w.l] = rt;
+        if (w.fn) w.fn(t);
+        if (w.wait) { t.wait = w.wait; break; }
+      } else { t.x += dx / d * move; t.y += dy / d * move; move = 0; }
+    }
+    if (!t.q.length && t.wait <= 0) t.dead = true;
+  };
+  f.frame = dt => {
+    for (let i = f.toks.length - 1; i >= 0; i--) {
+      const t = f.toks[i]; f.step(t, dt);
+      if (t.dead) { t.g.remove(); f.toks.splice(i, 1); continue; }
+      t.g.setAttribute('transform', `translate(${t.x.toFixed(1)},${t.y.toFixed(1)})`);
+    }
+    for (const k in f.N) f.N[k].g.classList.toggle('on', rt - f.N[k].last < 0.18);
+    for (const k in f.ln) f.ln[k].classList.toggle('on', rt - f.ll[k] < 0.25);
+  };
+  return f;
+}
+
+// ═════════════════════════ flow A: GC mark phase ═════════════════════════
+const fa = Flow($('#fa')), PA = fa.P;
+fa.node('R', { x: 70, y: 165, w: 110, t: 'Roots', s: 'globals, stacks', d: 1 });
+fa.node('F', { x: 220, y: 165, w: 130, t: 'Follow pointer', s: 'mark object alive' });
+fa.node('D', { x: 380, y: 165, w: 110, t: 'Has pointers?', d: 1 });
+fa.node('BL', { x: 540, y: 50, w: 180, t: '[]byte blob', s: '1 GB, 0 pointers' });
+fa.node('SK', { x: 800, y: 50, w: 200, t: 'Skip', s: 'done instantly' });
+fa.node('H', { x: 510, y: 165, w: 90, t: 'hmap header' });
+fa.node('B', { x: 630, y: 165, w: 100, t: 'bucket array', s: 'ptr' });
+fa.node('K', { x: 775, y: 135, w: 110, t: 'string key', s: 'ptr + len' });
+fa.node('V', { x: 775, y: 205, w: 110, t: 'string val', s: 'ptr + len' });
+fa.node('KB', { x: 925, y: 135, w: 90, t: '[]byte', s: 'key bytes' });
+fa.node('VB', { x: 925, y: 205, w: 90, t: '[]byte', s: 'value bytes' });
+fa.node('O', { x: 630, y: 268, w: 130, t: 'Overflow bucket', s: 'list on collisions' });
+fa.lane(705, 88, 140, 148, 'BUCKET (8 SLOTS)', true);
+const LA = {
+  rf: [[125, 165], [155, 165]], fd: [[285, 165], [325, 165]],
+  dn: [[380, 146], [380, 50], [450, 50]], nb: [[630, 50], [700, 50]],
+  dy: [[435, 165], [465, 165]], hb: [[555, 165], [580, 165]],
+  kb: [[830, 135], [880, 135]], vb: [[830, 205], [880, 205]],
+  bo: [[630, 184], [630, 249]], og: [[695, 268], [775, 268], [775, 236]],
+};
+LA.bk = [[680, 165], [695, 165], [695, 135], [720, 135]];
+LA.bv = [[680, 165], [695, 165], [695, 205], [720, 205]];
+for (const [k, p] of Object.entries(LA)) fa.link(k, p);
+fa.label(388, 110, 'No (e.g. []byte)');
+fa.label(338, 203, 'Yes (e.g. map[string]string)');
+const movedTxt = fa.label(780, 288, 'Rules live in Redis now: nothing here to chase', 'middle');
+
+let markA = { active: false, el: 0, D: 1, pause: 0, ptr: 0, p: 0 };
+function addCycle(tok) {
+  const pts = [
+    PA(630, 165, { n: 'B', l: 'hb' }), PA(775, 135, { n: 'K', l: 'bk' }), PA(925, 135, { n: 'KB', l: 'kb' }),
+    PA(775, 135, { n: 'K' }), PA(630, 165, { n: 'B' }), PA(775, 205, { n: 'V', l: 'bv' }), PA(925, 205, { n: 'VB', l: 'vb' }),
+    PA(775, 205, { n: 'V' }), PA(630, 165, { n: 'B' }),
+  ];
+  if (Math.random() < 0.5) pts.push(PA(630, 268, { n: 'O', l: 'bo' }), PA(630, 165, { n: 'B' }));
+  pts[pts.length - 1].fn = () => { if (markA.active) addCycle(tok); };
+  tok.q.push(...pts);
+}
+function startMark(pause) {
+  const live = mode === 'old';
+  const D = 0.9 + 2.9 * Math.min(1, pause / 343);
+  const was = markA.active && markA.live;
+  markA = { active: true, live, el: 0, D, pause, ptr: pointers(entries), p: 0 };
+  if (was) return;
+  const t0 = fa.tok('fly', 70, 165, 6, '');
+  t0.q = [PA(220, 165, { n: 'F', l: 'rf' }), PA(380, 165, { n: 'D', l: 'fd', wait: 0.15, fn: () => {
+    const b = fa.tok('hit', 380, 165, 5);
+    b.q = [PA(380, 50, { l: 'dn' }), PA(540, 50, { n: 'BL' }), PA(800, 50, { n: 'SK', l: 'nb', fn: () => (bBlobDone = true) })];
+    if (markA.live) {
+      const m = fa.tok('miss', 380, 165, 5);
+      m.q = [PA(510, 165, { n: 'H', l: 'dy' })];
+      addCycle(m);
+    } else markA.active = false;
+  } })];
+}
+let bBlobDone = false;
+
+// ═════════════════════════ flow B: one proxy node ═════════════════════════
+const fb = Flow($('#fb')), PB = fb.P;
+fb.lane(170, 8, 620, 190, 'GO PROCESS (1 OF 10 NODES)');
+fb.node('R', { x: 75, y: 125, w: 120, t: 'Incoming Request' });
+fb.node('S', { x: 250, y: 125, w: 130, t: 'Go HTTP Server' });
+fb.node('L', { x: 470, y: 125, w: 200, t: '', s: '', d: 1 });
+fb.node('U', { x: 880, y: 125, w: 140, t: 'Forward to Upstream' });
+fb.node('G', { x: 600, y: 40, w: 220, h: 30, t: '', s: undefined });
+fb.node('RD', { x: 470, y: 245, w: 180, h: 46, t: 'Redis', s: 'data outside the Go heap', d: 1 });
+fb.link('rs', [[135, 125], [185, 125]]); fb.link('sl', [[315, 125], [370, 125]]); fb.link('lu', [[570, 125], [810, 125]]);
+fb.link('get', [[450, 144], [450, 222]], true); fb.link('rep', [[490, 222], [490, 144]], true);
+const lblGet = fb.label(444, 190, 'GET rule', 'end'), lblRep = fb.label(496, 190, 'value');
+
+fb.freeze = t => t.req && gcStall();
+
+function spawnReq() {
+  const n = ++reqN;
+  const base = 0.2 + Math.random() * 0.3, hop = mode === 'new' ? 1 + Math.random() : 0;
+  const rem = gcStall() ? (gcUntil - simT) * 1000 : 0;
+  const smp = { t: simT, ms: base + hop + rem, st: rem > 0.5 };
+  samples.push(smp); if (samples.length > 600) samples.shift();
+  const tok = fb.tok(smp.st ? 'miss' : 'accent', 75, 125 + (Math.random() - 0.5) * 14, 5);
+  tok.req = true; tok.smp = smp;
+  fb.N.R.last = rt;
+  tok.q = [PB(250, 125, { n: 'S', l: 'rs' }), PB(470, 125, { n: 'L', l: 'sl', wait: 0.04 })];
+  if (mode === 'new') {
+    tok.q.push(PB(450, 144, { l: 'get' }), PB(450, 245, { n: 'RD', wait: 0.12 }), PB(490, 245), PB(490, 144, { l: 'rep' }));
+  }
+  tok.q.push(PB(880, 125, { n: 'U', l: 'lu' }));
+  detail(`#${n} → lookup in ${mode === 'old' ? 'in-memory map' : `Redis (+${hop.toFixed(1)} ms)`} → ` +
+    (smp.st ? `<b>stalled by GC</b>, waited ${rem.toFixed(0)} ms` : 'no stall') + ` → total <b>${smp.ms.toFixed(1)} ms</b> (modeled)`);
+  // fleet view
+  const i = Math.floor(Math.random() * 10), x = fcX(i);
+  fc.N['G' + i].last = rt;
+  if (mode === 'new') {
+    const t = fc.tok('accent', x, 105, 4);
+    t.q = [PC(x, 122, { l: 's' + i }), PC(740, 122, { l: 'bus' }), PC(740, 70), PC(770, 70, { n: 'RD' })];
+  }
+}
+
+// ═════════════════════════ flow C: fleet ═════════════════════════
+const fc = Flow($('#fc')), PC = fc.P;
+fc.lane(8, 6, 722, 104, '10 GO NODES');
+const fcX = i => 50 + i * 68;
+for (let i = 0; i < 10; i++) fc.node('G' + i, { x: fcX(i), y: 70, w: 58, h: 60, t: 'Go ' + (i + 1), s: '' });
+fc.node('RD', { x: 865, y: 70, w: 190, h: 70, t: 'Redis', s: '' });
+for (let i = 0; i < 10; i++) fc.link('s' + i, [[fcX(i), 100], [fcX(i), 122]]);
+fc.link('bus', [[50, 122], [740, 122], [740, 70], [770, 70]]);
+
+// ═════════════════════════ GC cycle ═════════════════════════
+function gcCycle() {
+  gcCount++;
+  const pause = mode === 'old' ? markMs(entries) * (0.95 + Math.random() * 0.1) : 0.2 + Math.random() * 0.2;
+  gcLog.push({ a: simT, b: simT + (mode === 'old' ? pause / 1000 : 0.02) });
+  while (gcLog.length && gcLog[0].b < simT - WIN) gcLog.shift();
+  if (mode === 'old') {
+    gcUntil = simT + pause / 1000;
+    for (const t of fb.toks) if (t.req) fb.color(t, 'miss');
+  }
+  lastNodeFlash = rt;
+  startMark(pause);
+  detail2(mode === 'old'
+    ? `GC #${gcCount}: marking ${fmt(pointers(entries))} pointers, all requests stall for <b>${pause.toFixed(1)} ms</b> (modeled)`
+    : `GC #${gcCount}: map is in Redis, little to mark, about <b>${pause.toFixed(1)} ms</b> (modeled)`);
+}
+
+// ═════════════════════════ ui ═════════════════════════
+const TILES = [
+  ['ent', 'Map entries'], ['ptr', 'Pointers in Go heap (modeled)'], ['mark', 'GC mark time (modeled)'],
+  ['stall', 'Requests stalled by GC'], ['p99', 'Latency p99 / max (modeled)'], ['hop', 'Lookup cost (modeled)'],
+  ['ram', 'RAM for rules, fleet (modeled)'], ['gcs', 'GC cycles run'],
+];
+const tileEl = {};
+for (const [id, k] of TILES) {
+  const d = document.createElement('div'); d.className = 'tile';
+  d.innerHTML = `<div class="k">${k}</div><div class="v"></div>`;
+  $('#tiles').appendChild(d); tileEl[id] = d.querySelector('.v');
+}
+let lastDetail = '', lastDetail2 = '';
+const detail = h => (lastDetail = h), detail2 = h => (lastDetail2 = h);
+const gb = n => { const g = n * BYTES_PER_ENTRY / 1e9; return (g < 10 ? g.toFixed(2) : g.toFixed(1)) + ' GB'; };
+
+function updateUI() {
+  const old = mode === 'old', nM = entries / 1e6;
+  const mk = old ? markMs(entries) : 0.3;
+  const L = samples.slice(-400).map(s => s.ms), stalled = samples.slice(-400).filter(s => s.st).length;
+  tileEl.ent.textContent = nM + 'M';
+  tileEl.ptr.innerHTML = old ? fmt(pointers(entries)) : '~0 <small>rules are in Redis</small>';
+  tileEl.mark.innerHTML = `<span class="${mk < BUDGET ? 'good' : 'bad'}">${mk < 1 ? mk.toFixed(1) : Math.round(mk)} ms</span> <small>budget ${BUDGET} ms</small>`;
+  tileEl.stall.innerHTML = L.length ? `<span class="${stalled / L.length > 0.01 ? 'bad' : 'good'}">${Math.round(stalled / L.length * 100)}%</span> <small>${stalled} of ${L.length}</small>` : '-';
+  const p99 = pct(L, 0.99), mx = L.length ? Math.max(...L) : 0;
+  tileEl.p99.innerHTML = L.length ? `<span class="${p99 < BUDGET ? 'good' : 'bad'}">${p99.toFixed(1)}</span> <small>/ ${mx.toFixed(0)} ms</small>` : '-';
+  tileEl.hop.innerHTML = old ? '~0 <small>in-process map</small>' : '+1-2 ms <small>Redis round trip</small>';
+  tileEl.ram.innerHTML = old ? `${gb(entries * 10)} <small>10 copies x ${gb(entries)}</small>` : `${gb(entries)} <small>1 copy in Redis</small>`;
+  tileEl.gcs.textContent = gcCount;
+  $('#detail').innerHTML = lastDetail || 'Waiting for the first request...';
+  $('#detail2').innerHTML = lastDetail2 || 'Waiting for the first GC cycle...';
+}
+
+function updateLabels() {
+  const old = mode === 'old';
+  fb.set('L', old ? 'Lookup rule in Large Map' : 'Lookup rule in Redis',
+    old ? `map[string]string, ${fmt(pointers(entries))} pointers` : 'outside Go heap, +1-2 ms (modeled)');
+  const g = gcStall();
+  fb.set('G', g ? `GC MARKING, requests stalled` : (old ? 'GC idle' : 'GC: tiny heap, near-zero pause'), '');
+  fb.N.G.tEl.setAttribute('y', 44);
+  fb.N.G.g.classList.toggle('hot', g);
+  fb.N.L.g.classList.toggle('hot', g);
+  fb.N.S.g.classList.toggle('hot', g);
+  fb.N.RD.g.classList.toggle('dim', old);
+  for (const k of ['get', 'rep']) fb.ln[k].classList.toggle('off', old);
+  lblGet.style.opacity = lblRep.style.opacity = old ? 0 : 1;
+
+  for (const k of ['H', 'B', 'K', 'V', 'KB', 'VB', 'O']) fa.N[k].g.classList.toggle('dim', !old);
+  fa.N.BL.g.classList.remove('dim');
+  movedTxt.style.opacity = old ? 0 : 1;
+
+  for (let i = 0; i < 10; i++) {
+    fc.set('G' + i, 'Go ' + (i + 1), old ? gb(entries) : 'no map');
+    fc.N['G' + i].g.classList.toggle('d', old);
+    fc.N['G' + i].g.classList.toggle('hot', g);
+    fc.ln['s' + i].classList.toggle('off', old);
+  }
+  fc.ln.bus.classList.toggle('off', old);
+  fc.set('RD', 'Redis', old ? 'not used' : 'one shared copy, ' + gb(entries));
+  fc.N.RD.g.classList.toggle('dim', old);
+  fc.N.RD.g.classList.toggle('d', !old);
+
+  $('#runGc').disabled = !old;
+}
+
+function updateBars() {
+  const m = markA;
+  if (mode === 'new') {
+    $('#bMap').style.width = '0%'; $('#tMap').textContent = 'not in Go heap';
+  } else if (m.pause) {
+    $('#bMap').style.width = (m.p * 100) + '%';
+    $('#tMap').textContent = `${fmt(Math.round(m.p * m.ptr))} ptrs, ${(m.p * m.pause).toFixed(1)} ms`;
+  } else $('#tMap').textContent = 'waiting for GC...';
+  $('#bBlob').style.width = '0%';
+  $('#tBlob').textContent = bBlobDone ? '0 pointers, 0 ms' : 'waiting for GC...';
+}
+
+// ═════════════════════════ chart ═════════════════════════
+const cv = $('#chart'), cx = cv.getContext('2d');
+let C = {};
+function readColors() {
+  const s = getComputedStyle(document.documentElement);
+  for (const n of ['accent', 'miss', 'muted', 'line']) C[n] = s.getPropertyValue('--' + n).trim();
+}
+function resizeChart() {
+  const dpr = window.devicePixelRatio || 1;
+  cv.width = Math.round(cv.clientWidth * dpr); cv.height = Math.round(cv.clientHeight * dpr);
+}
+function drawChart() {
+  const dpr = cv.width / cv.clientWidth, W = cv.clientWidth, H = cv.clientHeight;
+  const pl = 40, pr = 8, pt = 8, pb = 18;
+  cx.setTransform(dpr, 0, 0, dpr, 0, 0); cx.clearRect(0, 0, W, H);
+  const Y = ms => pt + (1 - Math.min(ms, YMAX) / YMAX) * (H - pt - pb);
+  const X = t => pl + (t - (simT - WIN)) / WIN * (W - pl - pr);
+  cx.font = '10px system-ui,sans-serif'; cx.textAlign = 'right'; cx.fillStyle = C.muted; cx.lineWidth = 1;
+  for (const v of [0, 100, 200, 300, 400]) {
+    cx.strokeStyle = C.line; cx.beginPath(); cx.moveTo(pl, Y(v)); cx.lineTo(W - pr, Y(v)); cx.stroke();
+    cx.fillText(v + ' ms', pl - 4, Y(v) + 3);
+  }
+  cx.textAlign = 'left'; cx.fillText('older', pl, H - 4); cx.textAlign = 'right'; cx.fillText('now', W - pr, H - 4);
+  cx.globalAlpha = 0.18; cx.fillStyle = C.miss;
+  for (const g of gcLog) {
+    const x0 = Math.max(pl, X(g.a)), x1 = Math.min(W - pr, X(g.b));
+    if (x1 > x0) cx.fillRect(x0, pt, Math.max(1.5, x1 - x0), H - pt - pb);
+  }
+  cx.globalAlpha = 1;
+  cx.strokeStyle = C.miss; cx.setLineDash([5, 4]); cx.beginPath(); cx.moveTo(pl, Y(BUDGET)); cx.lineTo(W - pr, Y(BUDGET)); cx.stroke(); cx.setLineDash([]);
+  cx.textAlign = 'left'; cx.fillStyle = C.miss; cx.fillText('100 ms budget', pl + 4, Y(BUDGET) - 3);
+  for (const s of samples) {
+    if (s.t < simT - WIN) continue;
+    cx.fillStyle = s.st ? C.miss : C.accent;
+    cx.beginPath(); cx.arc(X(s.t), Y(s.ms), 2.2, 0, 7); cx.fill();
+  }
+}
+
+// ═════════════════════════ controls ═════════════════════════
+function resetStats() { samples.length = 0; gcLog.length = 0; lastDetail = ''; lastDetail2 = ''; gcCount = 0; }
+$('#play').onclick = () => { paused = !paused; $('#play').textContent = paused ? 'Play' : 'Pause'; };
+$('#speed').onchange = e => (speed = +e.target.value);
+document.querySelectorAll('.seg button').forEach(b => b.onclick = () => {
+  mode = b.dataset.mode;
+  document.querySelectorAll('.seg button').forEach(x => x.classList.toggle('on', x === b));
+  gcUntil = 0; resetStats(); nextGc = simT + 0.5;
+  fb.toks.forEach(t => { if (t.req) { t.dead = true; } });
+  updateLabels(); updateUI();
+});
+$('#entries').oninput = e => {
+  entries = +e.target.value * 1e6; $('#entriesO').textContent = e.target.value + 'M';
+  resetStats(); updateLabels(); updateUI();
+};
+$('#gcev').oninput = e => {
+  gcEvery = +e.target.value; $('#gcevO').textContent = gcEvery + 's';
+  nextGc = Math.min(nextGc, simT + gcEvery);
+};
+$('#runGc').onclick = () => { if (mode === 'old') startMark(markMs(entries)); };
+$('#entriesO').textContent = '10M'; $('#gcevO').textContent = '2s';
+
+// ═════════════════════════ main loop ═════════════════════════
+let prev = performance.now(), uiAcc = 0;
+function frame(ts) {
+  const real = Math.min(0.05, (ts - prev) / 1000); prev = ts;
+  rt += real;
+  const dt = paused ? 0 : real * speed;
+  simT += dt * SC; at += dt;
+
+  if (!paused) {
+    spawnAcc += dt * SC * SPS;
+    while (spawnAcc >= 1) { spawnAcc--; spawnReq(); }
+    if (simT >= nextGc) { nextGc = simT + gcEvery; gcCycle(); }
+    if (markA.active) {
+      markA.el += dt; markA.p = Math.min(1, markA.el / markA.D);
+      if (markA.p >= 1) markA.active = false;
+    }
+  }
+    fa.frame(dt); fb.frame(dt); fc.frame(dt);
+  fc.N.RD.g.classList.toggle('hot', false);
+  drawChart();
+  uiAcc += real;
+  if (uiAcc > 0.15) { uiAcc = 0; updateUI(); updateLabels(); updateBars(); }
+  requestAnimationFrame(frame);
+}
+
+readColors();
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', readColors);
+window.addEventListener('resize', resizeChart);
+resizeChart(); updateLabels(); updateBars(); updateUI();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Thread Count Simulator</title>
+<style>
+  :root {
+    --bg:#fafafa; --panel:#fff; --ink:#2d2d2d; --muted:#888; --line:#d8d8d8;
+    --node:#f5f5f5; --node-b:#c0c0c0; --dec:#e8e8e8; --dec-b:#aaa;
+    --hit:#2f9e6b; --miss:#e0802b; --skip:#a3a3a3; --accent:#3b6fd8; --fly:#8a63d2;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg:#1c1d21; --panel:#24262b; --ink:#e4e4e4; --muted:#9a9a9a; --line:#3a3c42;
+      --node:#2c2e34; --node-b:#4f525a; --dec:#34373e; --dec-b:#666a74;
+      --hit:#4cc38a; --miss:#f0954a; --skip:#7a7a7a; --accent:#6b95ef; --fly:#a68bec;
+    }
+  }
+  *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--ink); font-family:system-ui,sans-serif; font-size:13px; padding:12px; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:12px 14px; margin-bottom:12px; }
+  .lane-t { font-size:10px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:8px; }
+
+  .bar { display:flex; flex-wrap:wrap; gap:10px 18px; align-items:center; }
+  .bar h1 { font-size:14px; font-weight:700; margin-right:auto; }
+  .grp { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--muted); }
+  .grp input[type=range] { width:100px; accent-color:var(--accent); }
+  .grp output { color:var(--ink); min-width:42px; font-variant-numeric:tabular-nums; }
+  button, select { font:inherit; font-size:12px; color:var(--ink); background:var(--node); border:1px solid var(--node-b); border-radius:5px; padding:4px 10px; cursor:pointer; }
+  button:hover { border-color:var(--accent); }
+  button.on { background:var(--accent); border-color:var(--accent); color:#fff; }
+
+  .tiles { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:8px; }
+  .tile { border:1px solid var(--line); border-radius:6px; padding:7px 10px; }
+  .tile .k { font-size:10.5px; color:var(--muted); }
+  .tile .v { font-size:17px; font-weight:600; font-variant-numeric:tabular-nums; margin-top:2px; }
+  .tile .v small { font-size:11px; font-weight:400; color:var(--muted); }
+  .good { color:var(--hit); } .bad { color:var(--miss); }
+  #detail { margin-top:10px; font-size:12px; line-height:1.5; min-height:38px; font-family:ui-monospace,Menlo,monospace; color:var(--muted); }
+  #detail b { color:var(--ink); font-weight:600; }
+  .note { margin-top:8px; font-size:11px; color:var(--muted); line-height:1.5; }
+  .legend { display:flex; flex-wrap:wrap; gap:4px 14px; margin-top:8px; font-size:11px; color:var(--muted); }
+  .sw { display:inline-block; width:10px; height:10px; border-radius:50%; vertical-align:-1px; margin-right:4px; }
+
+  svg { display:block; width:100%; height:auto; }
+  .n rect { fill:var(--node); stroke:var(--node-b); stroke-width:1.5; transition:stroke .1s; }
+  .n.d rect { fill:var(--dec); stroke:var(--dec-b); stroke-width:2; }
+  .n.on rect { stroke:var(--accent); stroke-width:2.5; }
+  .n .t { font-size:14.5px; fill:var(--ink); text-anchor:middle; }
+  .n.d .t { font-weight:600; }
+  .n .s { font-size:11.5px; fill:var(--muted); text-anchor:middle; }
+  .ln { fill:none; stroke:var(--node-b); stroke-width:1.5; }
+  .ln.on { stroke:var(--accent); }
+  .lbl { font-size:11px; fill:var(--muted); }
+  .lane { fill:none; stroke:var(--line); }
+  .lane-txt { font-size:10.5px; font-weight:700; fill:var(--muted); letter-spacing:1px; }
+  .th { fill:var(--node); stroke:var(--node-b); stroke-width:1; }
+  .th.busy { fill:var(--accent); stroke:var(--accent); }
+  .th.off { opacity:.25; }
+  .gauge-bg { fill:var(--node); stroke:var(--node-b); }
+  .inbox { stroke:var(--node-b); stroke-width:1; stroke-dasharray:3 3; }
+  .hist-l { fill:none; stroke-width:1.6; }
+</style>
+</head>
+<body>
+
+<div class="card bar">
+  <h1>Worker Threads vs One Event Loop</h1>
+  <div class="grp"><button id="play">Pause</button>
+    <select id="speed"><option value="0.1" selected>Slow motion</option><option value="0.3">Slower than real</option><option value="1">1x</option><option value="3">3x</option></select></div>
+  <div class="grp">Worker threads <input type="range" id="w" min="4" max="36" value="36"><output id="wO"></output></div>
+  <div class="grp">Traffic <input type="range" id="rate" min="1500" max="3500" step="100" value="2700"><output id="rateO"></output></div>
+  <div class="grp"><button id="log" class="on" title="Fix 1: logging and formatting run in worker threads instead of the event loop">Logging in event loop</button></div>
+  <div class="grp">Presets <button id="p1">Before: 36 threads</button><button id="p2">After: 16 threads + Fix 1</button></div>
+</div>
+
+<div class="card">
+  <svg id="flow" viewBox="0 0 1000 250"></svg>
+  <div class="legend">
+    <span><i class="sw" style="background:var(--accent)"></i>Request in flight</span>
+    <span><i class="sw" style="background:var(--hit)"></i>Answered in time</span>
+    <span><i class="sw" style="background:var(--miss)"></i>Missed the 100 ms deadline</span>
+    <span>Dots are a small sample of requests. Numbers and timings are modeled.</span>
+  </div>
+</div>
+
+<div class="card">
+  <div class="tiles" id="tiles"></div>
+  <div id="detail">Waiting for the first sampled request...</div>
+  <div class="lane-t" style="margin-top:12px">History (modeled): on-time throughput, event loop CPU, timeouts</div>
+  <svg id="hist" viewBox="0 0 1000 80" preserveAspectRatio="none" style="height:80px"></svg>
+  <div class="legend">
+    <span><i class="sw" style="background:var(--hit)"></i>On-time throughput (0 to 3500 req/s)</span>
+    <span><i class="sw" style="background:var(--accent)"></i>Event loop CPU (0 to 100%)</span>
+    <span><i class="sw" style="background:var(--miss)"></i>Timeouts (0 to 100%)</span>
+  </div>
+  <div class="note">Modeled, not measured. Each request costs 5 ms of CPU in a worker (parse and match), then 3 trips through the event loop (to augmenters, to bidders, back to the worker). One loop message costs 80 µs with logging inside the loop (72 µs without), and every extra worker thread adds 2.5% to that cost (cache and lock contention). Augmenters take 8 to 16 ms and bidders 14 to 26 ms. The loop discards messages of requests that are already late, which is cheap.</div>
+</div>
+
+<script>
+//MODEL-START
+const DEADLINE = 100, QCAP = 3000, WCAP = 80, TAU = 300;
+const M = { w: 36, logIn: true, rate: 2700 };
+const EV = { ew: 0, we: 0, wl: 0, lw: 0, la: 0, al: 0, lb: 0, bl: 0 };
+const hooks = { arr: null, fin: null };
+class Q {
+  constructor(f) { this.f = f; this.a = []; this.h = 0; this.b = 0; }
+  get n() { return this.a.length - this.h; }
+  push(x) { x[this.f] = this.b + this.a.length; this.a.push(x); }
+  peek() { return this.a[this.h]; }
+  idx(x) { return x[this.f] - (this.b + this.h); }
+  shift() {
+    const x = this.a[this.h]; this.a[this.h++] = undefined;
+    if (this.h > 2048) { this.a = this.a.slice(this.h); this.b += this.h; this.h = 0; }
+    return x;
+  }
+}
+// modeled cost of one event loop message, in microseconds
+const loopCost = () => (M.logIn ? 80 : 72) * (1 + 0.025 * M.w);
+let T, budget, wq, loopQ, live, wk, au, bd, R, S, lats;
+function reset() {
+  T = 0; budget = 0;
+  wq = new Q('qs'); loopQ = new Q('qs'); live = new Q('ls');
+  wk = []; au = []; bd = [];
+  R = { ok: 0, to: 0, util: 0, busy: 0, tot: 0 };
+  S = { id: 0, ok: 0, to: 0 };
+  lats = [];
+}
+reset();
+function toLoop(r, kind, ev) {
+  if (loopQ.n >= QCAP) { r.stage = 'gone'; return; }
+  r.kind = kind; r.stage = 'loop'; r.qT = T; loopQ.push(r); EV[ev]++;
+}
+function route(r) {
+  if (r.kind === 'toAug') { r.stage = 'aug'; r.doneAt = T + 8 + Math.random() * 8; au.push(r); EV.la++; }
+  else if (r.kind === 'toBid') { r.stage = 'bid'; r.doneAt = T + 14 + Math.random() * 12; bd.push(r); EV.lb++; }
+  else {
+    r.stage = 'done'; r.fin = true; r.lat = T - r.born; EV.lw++; EV.we++;
+    if (!r.expired) { nOk++; S.ok++; }
+    lats.push(r.lat); if (lats.length > 300) lats.shift();
+    if (r.samp && hooks.fin) hooks.fin(r);
+  }
+}
+let nOk = 0, nTo = 0;
+function step() {
+  T++; nOk = 0; nTo = 0;
+  const L = Math.exp(-M.rate / 1000);
+  let k = 0, p = Math.random();
+  while (p > L) { k++; p *= Math.random(); }
+  for (let i = 0; i < k; i++) {
+    const r = { id: ++S.id, born: T, stage: 'wq', samp: false };
+    live.push(r); EV.ew++;
+    if (hooks.arr) hooks.arr(r);
+    if (wq.n >= WCAP) { r.stage = 'gone'; continue; }
+    wq.push(r);
+  }
+  while (live.n && live.peek().born + DEADLINE <= T) {
+    const r = live.shift();
+    if (!r.fin) { r.expired = true; nTo++; S.to++; if (r.samp && hooks.fin) hooks.fin(r); }
+  }
+  let keep = 0;
+  for (const r of wk) { if (r.doneAt <= T) toLoop(r, 'toAug', 'wl'); else wk[keep++] = r; }
+  wk.length = keep;
+  while (wk.length < M.w && wq.n) {
+    const r = wq.shift();
+    if (r.expired) { r.stage = 'drop'; continue; }
+    r.stage = 'work'; r.wait = T - r.born; r.doneAt = T + 5.0 * (0.8 + Math.random() * 0.4); wk.push(r);
+  }
+  const cost = loopCost();
+  budget += 1000 / cost;
+  let n = 0;
+  while (budget >= 1 && loopQ.n) {
+    const r = loopQ.shift();
+    r.lw = (r.lw || 0) + (T - r.qT);
+    if (r.expired) { budget -= 0.25; n += 0.25; r.stage = 'drop'; continue; }
+    budget--; n++; route(r);
+  }
+  if (!loopQ.n) budget = 0;
+  keep = 0;
+  for (const r of au) { if (r.doneAt <= T) toLoop(r, 'toBid', 'al'); else au[keep++] = r; }
+  au.length = keep; keep = 0;
+  for (const r of bd) { if (r.doneAt <= T) toLoop(r, 'resp', 'bl'); else bd[keep++] = r; }
+  bd.length = keep;
+  const a = 1 / TAU;
+  R.ok += (nOk * 1000 - R.ok) * a; R.to += (nTo * 1000 - R.to) * a;
+  R.util += (Math.min(1, n * cost / 1000) - R.util) * 0.01;
+  R.busy += (wk.length - R.busy) * 0.01;
+}
+//MODEL-END
+
+// ═════════════════════════ ui ═════════════════════════
+const $ = s => document.querySelector(s);
+const fmt = n => Math.round(n).toLocaleString('en-US');
+let speed = 0.1, paused = false, rt = 0, stepAcc = 0;
+
+const svg = $('#flow'), NS = 'http://www.w3.org/2000/svg';
+function el(tag, attrs, parent = svg) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  parent.appendChild(e); return e;
+}
+const defs = el('defs', {});
+const mk = el('marker', { id: 'ah', viewBox: '0 0 10 10', refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: 'auto-start-reverse' }, defs);
+el('path', { d: 'M0,0 L10,5 L0,10 z', style: 'fill:var(--node-b)' }, mk);
+const gLane = el('g', {}), gLine = el('g', {}), gNode = el('g', {}), gTok = el('g', {});
+el('rect', { class: 'lane', x: 6, y: 4, width: 988, height: 242, rx: 8 }, gLane);
+el('text', { class: 'lane-txt', x: 20, y: 20 }, gLane).textContent = 'ONE REQUEST, 100 MS DEADLINE (MODELED)';
+
+const N = {
+  X: { x: 60,  y: 120, w: 100, h: 44, t: 'Ad exchange', s: 'bid requests' },
+  W: { x: 250, y: 120, w: 150, h: 64, t: 'Exchange Workers', s: '' },
+  L: { x: 520, y: 120, w: 150, h: 64, t: 'Event Loop', s: '', d: 1 },
+  A: { x: 810, y: 50,  w: 150, h: 40, t: 'Augmenters', s: 'IO-bound' },
+  B: { x: 810, y: 190, w: 150, h: 40, t: 'Bidders', s: 'IO-bound' },
+};
+const LINKS = {
+  ew: [[110,108],[175,108]], we: [[175,132],[110,132]],
+  wl: [[325,108],[445,108]], lw: [[445,132],[325,132]],
+  la: [[595,108],[690,108],[690,40],[735,40]], al: [[735,60],[670,60],[670,96],[595,96]],
+  lb: [[595,132],[690,132],[690,200],[735,200]], bl: [[735,180],[670,180],[670,144],[595,144]],
+};
+const linkEl = {}, linkLast = {};
+for (const [id, pts] of Object.entries(LINKS)) {
+  linkEl[id] = el('polyline', { class: 'ln', points: pts.join(' '), 'marker-end': 'url(#ah)' }, gLine);
+  linkLast[id] = -9;
+}
+const label = (x, y, t, a = 'start') => (el('text', { class: 'lbl', x, y, 'text-anchor': a }, gLine).textContent = t);
+label(142, 102, 'request', 'middle'); label(142, 146, 'reply', 'middle');
+label(385, 102, 'parsed', 'middle'); label(385, 146, 'response', 'middle');
+label(698, 86, 'route'); label(662, 80, 'result', 'end');
+label(698, 166, 'route'); label(662, 166, 'result', 'end');
+for (const [id, n] of Object.entries(N)) {
+  n.g = el('g', { class: 'n' + (n.d ? ' d' : '') }, gNode);
+  el('rect', { x: n.x - n.w / 2, y: n.y - n.h / 2, width: n.w, height: n.h, rx: 6 }, n.g);
+  n.tEl = el('text', { class: 't', x: n.x, y: n.y - 2 }, n.g); n.tEl.textContent = n.t;
+  n.sEl = el('text', { class: 's', x: n.x, y: n.y + 11 }, n.g); n.sEl.textContent = n.s;
+  n.last = -9;
+}
+// worker thread squares
+const THS = [];
+for (let i = 0; i < 36; i++) {
+  const r = el('rect', { class: 'th', x: 250 - 78 + (i % 12) * 13, y: 168 + Math.floor(i / 12) * 13, width: 10, height: 10, rx: 2 }, gNode);
+  THS.push(r);
+}
+const thT = el('text', { class: 'lbl', x: 250, y: 222, 'text-anchor': 'middle' }, gNode);
+const wqT = el('text', { class: 'lbl', x: 60, y: 168, 'text-anchor': 'middle' }, gNode);
+// event loop inbox + cpu gauge
+el('line', { class: 'inbox', x1: 445, y1: 172, x2: 595, y2: 172 }, gNode);
+el('text', { class: 'lbl', x: 445, y: 186 }, gNode).textContent = 'inbox queue';
+el('rect', { class: 'gauge-bg', x: 445, y: 196, width: 150, height: 10, rx: 3 }, gNode);
+const gauge = el('rect', { x: 445, y: 196, width: 0, height: 10, rx: 3, style: 'fill:var(--accent)' }, gNode);
+const gaugeT = el('text', { class: 'lbl', x: 520, y: 222, 'text-anchor': 'middle' }, gNode);
+
+// ═════════════════════════ tokens (sampled requests) ═════════════════════════
+const toks = [];
+const WP = {
+  work: [], 
+  loopW: [[340, 160]],
+  loopA: [[670, 60], [670, 150]],
+  loopB: [[735, 180], [670, 180], [670, 160]],
+  aug: [[520, 120], [690, 108], [690, 40]],
+  bid: [[520, 120], [690, 132], [690, 200]],
+  done: [[520, 120], [445, 132], [325, 132], [175, 132]],
+};
+const jit = r => ((r.id * 37) % 21) - 10;
+function dest(r) {
+  switch (r.stage) {
+    case 'wq': return [168 - 50 * Math.min(1, wq.idx(r) / 120), 120];
+    case 'work': return [250 + jit(r) * 2.5, 120 + jit(r) * 0.5];
+    case 'loop': return [590 - 145 * Math.min(1, loopQ.idx(r) / 300), 172];
+    case 'aug': return [810 + jit(r) * 4, 50 + jit(r) * 0.6];
+    case 'bid': return [810 + jit(r) * 4, 190 + jit(r) * 0.6];
+    default: return [60, 120];
+  }
+}
+function setStage(tok, r) {
+  tok.stage = r.stage;
+  if (r.stage === 'work') tok.way = [];
+  else if (r.stage === 'loop') tok.way = (r.kind === 'toAug' ? WP.loopW : r.kind === 'toBid' ? WP.loopA : WP.loopB).map(p => p.slice());
+  else if (r.stage === 'aug') tok.way = WP.aug.map(p => p.slice());
+  else if (r.stage === 'bid') tok.way = WP.bid.map(p => p.slice());
+  else if (r.stage === 'done') { tok.way = WP.done.map(p => p.slice()); tok.c.style.fill = r.expired ? 'var(--miss)' : 'var(--hit)'; }
+  else if (r.stage === 'drop' || r.stage === 'gone') { tok.way = []; tok.fade = 0.6; tok.c.style.fill = 'var(--miss)'; }
+}
+let sampleN = 1, arrCount = 0;
+hooks.arr = r => {
+  if (++arrCount % sampleN || toks.length > 90) return;
+  r.samp = true;
+  const g = el('g', {}, gTok), c = el('circle', { r: 4.5 }, g); c.style.fill = 'var(--accent)';
+  r.tok = { g, c, r, x: 60, y: 120, stage: 'wq', way: [], fade: 0 };
+  toks.push(r.tok);
+};
+let lastDetail = '';
+hooks.fin = r => {
+  const ms = v => v.toFixed(0) + ' ms';
+  if (r.stage === 'done' || r.lat != null) {
+    const ok = !r.expired;
+    const io = r.lat - (r.wait || 0) - (r.lw || 0);
+    lastDetail = `#${r.id} waited <b>${ms(r.wait || 0)}</b> for a worker, spent <b>${ms(r.lw || 0)}</b> waiting in the loop inbox (3 hops), ${ms(Math.max(0, io))} on parse and IO, total <b>${ms(r.lat)}</b> → ` +
+      (ok ? '<span class="good">answered in time</span>' : '<span class="bad">too late, exchange already gave up</span>');
+  } else if (r.expired && !r.fin) {
+    const where = { wq: 'waiting for a free worker thread', work: 'being parsed', loop: 'in the event loop inbox', aug: 'at the augmenters', bid: 'at the bidders', gone: 'rejected, queue full', drop: 'dropped' }[r.stage] || r.stage;
+    lastDetail = `#${r.id} hit 100 ms while <b>${where}</b> → <span class="bad">timeout</span>`;
+  }
+};
+
+function stepTok(t, dt) {
+  const r = t.r;
+  if (r.stage !== t.stage) setStage(t, r);
+  if (r.expired && r.stage !== 'done' && r.stage !== 'drop' && r.stage !== 'gone') t.c.style.fill = 'var(--miss)';
+  if (t.fade) { t.fade -= dt; t.c.style.opacity = Math.max(0, t.fade / 0.6); if (t.fade <= 0) t.dead = true; return; }
+  const [dx0, dy0] = t.way.length ? t.way[0] : dest(r);
+  const dx = dx0 - t.x, dy = dy0 - t.y, d = Math.hypot(dx, dy);
+  const move = Math.max(500, d * 6) * dt;
+  if (d <= move) {
+    t.x = dx0; t.y = dy0;
+    if (t.way.length) t.way.shift();
+    else if (r.stage === 'done') t.dead = true;
+  } else { t.x += dx / d * move; t.y += dy / d * move; }
+}
+
+// ═════════════════════════ tiles ═════════════════════════
+const TILES = [
+  ['tp', 'On-time throughput (modeled)'], ['to', 'Timeouts'], ['lat', 'Latency p50 / p99 (limit 100 ms)'],
+  ['cpu', 'Event loop CPU'], ['q', 'Event loop inbox'], ['wk', 'Worker threads busy'], ['cores', 'CPU cores in use (modeled)'],
+];
+const tileEl = {};
+for (const [id, k] of TILES) {
+  const d = document.createElement('div'); d.className = 'tile';
+  d.innerHTML = `<div class="k">${k}</div><div class="v"></div>`;
+  $('#tiles').appendChild(d); tileEl[id] = d.querySelector('.v');
+}
+const pct = (a, p) => { if (!a.length) return 0; const s = [...a].sort((x, y) => x - y); return s[Math.min(s.length - 1, Math.floor(p * s.length))]; };
+function updateUI() {
+  const tot = R.ok + R.to, toP = tot > 1 ? R.to / tot * 100 : 0;
+  const p50 = pct(lats, 0.5), p99 = pct(lats, 0.99);
+  tileEl.tp.innerHTML = `${fmt(R.ok)} <small>of ${fmt(M.rate)} req/s offered</small>`;
+  tileEl.to.innerHTML = `<span class="${toP > 1 ? 'bad' : 'good'}">${toP.toFixed(0)}%</span>`;
+  tileEl.lat.innerHTML = lats.length ? `<span class="${p99 > 100 ? 'bad' : 'good'}">${fmt(p50)}</span> <small>/ ${fmt(p99)} ms</small>` : '-';
+  tileEl.cpu.innerHTML = `<span class="${R.util > 0.95 ? 'bad' : 'good'}">${(R.util * 100).toFixed(0)}%</span> <small>of 1 thread</small>`;
+  tileEl.q.innerHTML = `<span class="${loopQ.n > 100 ? 'bad' : ''}">${fmt(loopQ.n)}</span> <small>messages${loopQ.n >= QCAP ? ' (full)' : ''}</small>`;
+  tileEl.wk.innerHTML = `${R.busy.toFixed(1)} <small>of ${M.w}, ${fmt(wq.n)} waiting</small>`;
+  tileEl.cores.innerHTML = `${(R.busy + R.util).toFixed(1)} <small>of 36 cores</small>`;
+  $('#detail').innerHTML = lastDetail || 'Waiting for the first sampled request...';
+
+  N.W.sEl.textContent = `${M.w} threads, CPU-bound`;
+  N.L.sEl.textContent = M.logIn ? 'routing + logging' : 'routing only';
+  THS.forEach((r, i) => {
+    r.setAttribute('class', 'th' + (i >= M.w ? ' off' : i < wk.length ? ' busy' : ''));
+  });
+  thT.textContent = `${M.w} worker threads, ${wk.length} busy`;
+  wqT.textContent = wq.n ? `${wq.n} waiting` : '';
+  gauge.setAttribute('width', (150 * R.util).toFixed(1));
+  gauge.style.fill = R.util > 0.95 ? 'var(--miss)' : 'var(--accent)';
+  gaugeT.textContent = `CPU ${(R.util * 100).toFixed(0)}%, inbox ${fmt(loopQ.n)} msgs`;
+}
+
+// history chart
+const hist = $('#hist'), HN = 150, H = { tp: [], cpu: [], to: [] };
+const hl = {
+  tp: el('polyline', { class: 'hist-l', style: 'stroke:var(--hit)' }, hist),
+  cpu: el('polyline', { class: 'hist-l', style: 'stroke:var(--accent)' }, hist),
+  to: el('polyline', { class: 'hist-l', style: 'stroke:var(--miss)' }, hist),
+};
+function pushHist() {
+  const tot = R.ok + R.to;
+  H.tp.push(Math.min(1, R.ok / 3500)); H.cpu.push(R.util); H.to.push(tot > 1 ? R.to / tot : 0);
+  for (const k in H) { if (H[k].length > HN) H[k].shift(); }
+  for (const k in H) hl[k].setAttribute('points', H[k].map((v, i) => `${(i / (HN - 1) * 1000).toFixed(1)},${(74 - v * 68).toFixed(1)}`).join(' '));
+}
+
+// ═════════════════════════ controls ═════════════════════════
+function clearToks() { for (const t of toks) t.g.remove(); toks.length = 0; }
+function warm() {
+  const a = hooks.arr, f = hooks.fin; hooks.arr = hooks.fin = null;
+  for (let i = 1; i <= 2400; i++) { step(); if (i % 20 === 0) pushHist(); }
+  hooks.arr = a; hooks.fin = f;
+  for (const k in EV) EV[k] = 0;
+}
+function restart() { reset(); clearToks(); H.tp.length = H.cpu.length = H.to.length = 0; lastDetail = ''; warm(); }
+function setW(v) { M.w = v; $('#w').value = v; $('#wO').textContent = v; }
+function setLog(on) { M.logIn = on; $('#log').classList.toggle('on', on); $('#log').textContent = on ? 'Logging in event loop' : 'Logging moved to workers'; }
+$('#play').onclick = () => { paused = !paused; $('#play').textContent = paused ? 'Play' : 'Pause'; };
+$('#speed').onchange = e => (speed = +e.target.value);
+$('#w').oninput = e => setW(+e.target.value);
+$('#rate').oninput = e => { M.rate = +e.target.value; $('#rateO').textContent = M.rate + '/s'; };
+$('#log').onclick = () => setLog(!M.logIn);
+$('#p1').onclick = () => { setW(36); setLog(true); restart(); };
+$('#p2').onclick = () => { setW(16); setLog(false); restart(); };
+setW(M.w); setLog(M.logIn); $('#rateO').textContent = M.rate + '/s';
+warm();
+
+// ═════════════════════════ main loop ═════════════════════════
+let prev = performance.now(), uiAcc = 0, hAcc = 0;
+function frame(ts) {
+  const real = Math.min(0.05, (ts - prev) / 1000); prev = ts;
+  rt += real;
+  if (!paused) {
+    stepAcc += real * speed * 1000;
+    const n = Math.min(200, Math.floor(stepAcc)); stepAcc -= n; if (stepAcc > 200) stepAcc = 0;
+    sampleN = Math.max(1, Math.ceil(M.rate * speed / 10));
+    for (let i = 0; i < n; i++) step();
+    hAcc += n;
+    if (hAcc >= 20) { hAcc = 0; pushHist(); }
+  }
+  for (const k in EV) { if (EV[k]) { linkLast[k] = rt; EV[k] = 0; } }
+  N.X.last = linkLast.ew; N.W.last = Math.max(linkLast.wl, linkLast.ew); N.L.last = Math.max(linkLast.la, linkLast.lb, linkLast.lw);
+  N.A.last = linkLast.al; N.B.last = linkLast.bl;
+  for (let i = toks.length - 1; i >= 0; i--) {
+    const t = toks[i]; stepTok(t, real);
+    if (t.dead) { t.g.remove(); toks.splice(i, 1); continue; }
+    t.g.setAttribute('transform', `translate(${t.x.toFixed(1)},${t.y.toFixed(1)})`);
+  }
+  for (const id in N) N[id].g.classList.toggle('on', rt - N[id].last < 0.15);
+  for (const id in linkEl) linkEl[id].classList.toggle('on', rt - linkLast[id] < 0.2);
+  uiAcc += real;
+  if (uiAcc > 0.2) { uiAcc = 0; updateUI(); }
+  requestAnimationFrame(frame);
+}
+updateUI();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

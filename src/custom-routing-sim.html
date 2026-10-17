@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Custom Routing Simulator</title>
+<style>
+  :root {
+    --bg:#fafafa; --panel:#fff; --ink:#2d2d2d; --muted:#888; --line:#d8d8d8;
+    --node:#f5f5f5; --node-b:#c0c0c0; --dec:#e8e8e8; --dec-b:#aaa;
+    --hit:#2f9e6b; --miss:#e0802b; --skip:#a3a3a3; --accent:#3b6fd8; --fly:#8a63d2;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg:#1c1d21; --panel:#24262b; --ink:#e4e4e4; --muted:#9a9a9a; --line:#3a3c42;
+      --node:#2c2e34; --node-b:#4f525a; --dec:#34373e; --dec-b:#666a74;
+      --hit:#4cc38a; --miss:#f0954a; --skip:#7a7a7a; --accent:#6b95ef; --fly:#a68bec;
+    }
+  }
+  *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--ink); font-family:system-ui,sans-serif; font-size:13px; padding:12px; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:12px 14px; margin-bottom:12px; }
+  .lane-t { font-size:10px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:6px; }
+
+  .bar { display:flex; flex-wrap:wrap; gap:10px 16px; align-items:center; }
+  .bar h1 { font-size:14px; font-weight:700; margin-right:auto; }
+  .grp { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--muted); }
+  .grp input[type=range] { width:84px; accent-color:var(--accent); }
+  .grp output { color:var(--ink); min-width:30px; font-variant-numeric:tabular-nums; }
+  button, select { font:inherit; font-size:12px; color:var(--ink); background:var(--node); border:1px solid var(--node-b); border-radius:5px; padding:4px 10px; cursor:pointer; }
+  button:hover { border-color:var(--accent); }
+  .seg { display:inline-flex; }
+  .seg button { border-radius:0; }
+  .seg button:first-child { border-radius:5px 0 0 5px; }
+  .seg button:last-child { border-radius:0 5px 5px 0; border-left:none; }
+  .seg button.on { background:var(--accent); border-color:var(--accent); color:#fff; }
+  #crash { border-color:var(--miss); color:var(--miss); }
+  #crash:hover { background:var(--miss); color:#fff; }
+
+  .legend { display:flex; flex-wrap:wrap; gap:4px 14px; margin-top:8px; font-size:11px; color:var(--muted); }
+  .sw { display:inline-block; width:10px; height:10px; border-radius:2px; vertical-align:-1px; margin-right:4px; }
+  .dot { border-radius:50%; }
+
+  .tiles { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:8px; }
+  .tile { border:1px solid var(--line); border-radius:6px; padding:7px 10px; }
+  .tile .k { font-size:10.5px; color:var(--muted); }
+  .tile .v { font-size:17px; font-weight:600; font-variant-numeric:tabular-nums; margin-top:2px; }
+  .tile .v small { font-size:11px; font-weight:400; color:var(--muted); }
+  .good { color:var(--hit); } .bad { color:var(--miss); }
+  .detail { margin-top:8px; font-size:12px; line-height:1.5; min-height:36px; font-family:ui-monospace,Menlo,monospace; color:var(--muted); overflow-wrap:anywhere; }
+  .detail b { color:var(--ink); font-weight:600; }
+  svg#spark { display:block; width:100%; height:64px; background:transparent; border:1px solid var(--line); border-radius:6px; }
+
+  svg#flow { display:block; width:100%; height:auto; }
+  .n rect.box { fill:var(--node); stroke:var(--node-b); stroke-width:1.5; transition:stroke .1s; }
+  .n.d rect.box { fill:var(--dec); stroke:var(--dec-b); }
+  .n.on rect.box { stroke:var(--accent); stroke-width:2; }
+  .n.dim { opacity:.35; }
+  .n .t { font-size:13px; fill:var(--ink); text-anchor:middle; }
+  .n .s { font-size:10.5px; fill:var(--muted); text-anchor:middle; }
+  .n .nt { font-size:13px; fill:var(--ink); }
+  .n .ns { font-size:10.5px; fill:var(--muted); text-anchor:end; }
+  .n.be { cursor:pointer; }
+  .n.be.down rect.box { stroke-dasharray:4 3; }
+  .n.be.down { opacity:.55; }
+  .n.be.out { opacity:.6; }
+  .n.be.out rect.box { stroke-dasharray:3 2; }
+  .ln { fill:none; stroke:var(--node-b); stroke-width:1.5; }
+  .ln.dash { stroke-dasharray:4 3; }
+  .ln.on { stroke:var(--accent); }
+  .fan { stroke:var(--line); stroke-width:1; }
+  .lbl { font-size:10.5px; fill:var(--muted); }
+  .lane { fill:none; stroke:var(--line); }
+  .lane.sub { stroke:var(--node-b); stroke-dasharray:3 3; }
+  .lane-txt { font-size:10px; font-weight:700; fill:var(--muted); letter-spacing:1px; }
+  .tok-t { font-size:9px; font-weight:700; fill:#fff; text-anchor:middle; dominant-baseline:central; pointer-events:none; }
+  .dimg { opacity:.35; }
+</style>
+</head>
+<body>
+
+<div class="card bar">
+  <h1>Custom Routing</h1>
+  <div class="grp"><button id="play">Pause</button>
+    <select id="speed"><option value="0.5">0.5x</option><option value="1" selected>1x</option><option value="2">2x</option></select></div>
+  <div class="grp">Routing
+    <span class="seg" data-k="route"><button data-v="rr" class="on">Round-robin</button><button data-v="proxy">Custom proxy</button></span></div>
+  <div class="grp">Nodes <input type="range" id="nodesIn" min="3" max="20" value="10"><output id="nodesInO"></output></div>
+  <div class="grp">Traffic <input type="range" id="rate" min="2" max="20" value="10"><output id="rateO"></output></div>
+  <div class="grp">Health check
+    <span class="seg" data-k="health"><button data-v="live" class="on">Liveness only</button><button data-v="ready">Readiness</button></span></div>
+  <div class="grp">Pick
+    <span class="seg" data-k="pick"><button data-v="random" class="on">Random</button><button data-v="least">Least request</button></span></div>
+  <div class="grp">Ready at <input type="range" id="ready" min="10" max="100" step="5" value="50"><output id="readyO"></output></div>
+  <div class="grp"><button id="crash" title="Crash a node. It restarts healthy but empty, then reloads its campaigns.">Crash a node</button></div>
+</div>
+
+<div class="card">
+  <svg id="flow" viewBox="0 0 1000 540"></svg>
+  <div class="legend">
+    <span><i class="sw dot" style="background:var(--accent)"></i>Bid request</span>
+    <span><i class="sw dot" style="background:var(--hit)"></i>Matched</span>
+    <span><i class="sw dot" style="background:var(--miss)"></i>Wasted</span>
+    <span><i class="sw dot" style="background:var(--fly)"></i>Health check</span>
+    <span>Click a node to crash it. Numbers are modeled.</span>
+  </div>
+</div>
+
+<div class="card">
+  <div class="tiles" id="tiles"></div>
+  <div class="detail" id="detail">Waiting for the first request...</div>
+  <div class="detail" id="hdetail" style="margin-top:0;min-height:18px">Health: all nodes ready.</div>
+  <div class="lane-t" style="margin-top:10px">Live match rate (last 150 requests). Dashed line: round-robin expectation, 3 / nodes (modeled)</div>
+  <svg id="spark" viewBox="0 0 1000 100" preserveAspectRatio="none"></svg>
+</div>
+
+<script>
+// ═════════════════════════ config (all modeled) ═════════════════════════
+const TOK_SPEED = 430;      // svg units per second at 1x
+const TOTAL = 10000, REP = 3;
+const LOAD_T = 12;          // seconds to load all campaigns after restart
+const DOWN_T = 2.5;         // seconds a crashed node stays down
+const CHECK_EVERY = 0.35;   // one node health-checked per interval
+const WINDOW = 150;
+
+let speed = 1, paused = false;
+let route = 'rr', health = 'live', pick = 'random';
+let NN = 10, rate = 10, readyPct = 50;
+
+const $ = s => document.querySelector(s);
+const fmt = n => Math.round(n).toLocaleString('en-US');
+const full = () => TOTAL * REP / NN;
+const thr = () => Math.round(full() * readyPct / 100);
+const gauss = () => Math.sqrt(-2 * Math.log(1 - Math.random())) * Math.cos(2 * Math.PI * Math.random());
+
+// ═════════════════════════ state ═════════════════════════
+let T = 0, rt = 0, spawnAcc = 0, hcAcc = 0, hcIdx = 0, rrIdx = 0, histAcc = 0;
+const nodes = [];
+const later = [];
+let st, win, hist, latSum, latN;
+function resetStats() { st = { req: 0, ok: 0, bad: 0, empty: 0 }; win = []; hist = []; latSum = 0; latN = 0; }
+resetStats();
+
+// ═════════════════════════ flow svg ═════════════════════════
+const svg = $('#flow'), NS = 'http://www.w3.org/2000/svg';
+function el(tag, attrs, parent = svg) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  parent.appendChild(e); return e;
+}
+const defs = el('defs', {});
+const mk = el('marker', { id: 'ah', viewBox: '0 0 10 10', refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: 'auto-start-reverse' }, defs);
+el('path', { d: 'M0,0 L10,5 L0,10 z', style: 'fill:var(--node-b)' }, mk);
+const gLane = el('g', {}), gFan = el('g', {}), gLine = el('g', {}), gNode = el('g', {}), gBack = el('g', {}), gTok = el('g', {});
+
+el('rect', { class: 'lane', x: 8, y: 6, width: 984, height: 330, rx: 8 }, gLane);
+el('text', { class: 'lane-txt', x: 22, y: 22 }, gLane).textContent = 'REQUEST PATH';
+const proxyLane = el('g', {}, gLane);
+el('rect', { class: 'lane sub', x: 255, y: 100, width: 445, height: 150, rx: 8 }, proxyLane);
+el('text', { class: 'lane-txt', x: 268, y: 117 }, proxyLane).textContent = 'REVERSE PROXY (GO), LIGHTWEIGHT FILTER';
+el('rect', { class: 'lane', x: 8, y: 346, width: 984, height: 188, rx: 8 }, gLane);
+el('text', { class: 'lane-txt', x: 22, y: 362 }, gLane).textContent = 'HEALTH CHECK, PER NODE, DECIDES WHO IS IN THE ROUTING POOL';
+
+const N = {
+  R:  { x: 65,  y: 170, w: 90,  t: 'Bid Request', s: 'userID, ...' },
+  LB: { x: 175, y: 170, w: 100,  t: 'Load Balancer', s: '' },
+  PA: { x: 315, y: 170, w: 100, t: 'Parse Request', s: 'userID, ...' },
+  QU: { x: 450, y: 170, w: 110, t: 'Query Redis', s: 'candidate nodes' },
+  PK: { x: 600, y: 170, w: 100, t: 'Pick Node', s: '' },
+  RD: { x: 450, y: 45,  w: 150, t: 'Redis', s: 'routing data', d: 1 },
+  H:  { x: 75,  y: 400, w: 110, t: 'Health Check', s: 'per node' },
+  A:  { x: 250, y: 400, w: 120, t: 'Is node alive?', s: 'liveness', d: 1 },
+  C:  { x: 440, y: 400, w: 120, t: 'Has campaigns?', s: '', d: 1 },
+  I:  { x: 630, y: 400, w: 120, t: 'Include in pool', s: '' },
+  PL: { x: 860, y: 400, w: 160, t: 'Routing pool', s: '' },
+  R1: { x: 250, y: 480, w: 120, t: 'Remove from pool', s: 'down' },
+  R2: { x: 440, y: 480, w: 120, t: 'Remove from pool', s: 'not loaded yet' },
+};
+const BUS = { x: 740, y: 170 };
+const LINKS = {
+  rl: { p: [[110,170],[125,170]] },
+  lp: { p: [[225,170],[265,170]] },
+  pq: { p: [[365,170],[395,170]] },
+  qk: { p: [[505,170],[550,170]] },
+  pb: { p: [[650,170],[BUS.x,BUS.y]], noarrow: 1 },
+  by: { p: [[175,189],[175,300],[740,300],[740,174]], dash: 1 },
+  qd: { p: [[438,64],[438,151]] },
+  qu: { p: [[462,151],[462,64]] },
+  ha: { p: [[130,400],[190,400]] },
+  ay: { p: [[310,400],[380,400]] },
+  an: { p: [[250,419],[250,461]] },
+  cy: { p: [[500,400],[570,400]] },
+  cn: { p: [[440,419],[440,461]] },
+  ip: { p: [[690,400],[780,400]] },
+  r1p: { p: [[250,499],[250,515],[860,515],[860,419]], dash: 1 },
+  r2p: { p: [[440,499],[440,515]], dash: 1, noarrow: 1 },
+};
+const linkEl = {}, linkLast = {};
+for (const [id, l] of Object.entries(LINKS)) {
+  const a = { class: 'ln' + (l.dash ? ' dash' : ''), points: l.p.join(' ') };
+  if (!l.noarrow) a['marker-end'] = 'url(#ah)';
+  linkEl[id] = el('polyline', a, gLine); linkLast[id] = -9;
+}
+const label = (x, y, t, a = 'start') => (el('text', { class: 'lbl', x, y, 'text-anchor': a }, gLine).textContent = t);
+label(432, 128, 'query', 'end'); label(468, 128, 'result');
+label(450, 293, 'round-robin: straight to a node, no routing logic', 'middle');
+label(256, 450, 'No'); label(446, 450, 'No');
+label(345, 392, 'Yes', 'middle'); label(535, 392, 'Yes', 'middle');
+
+for (const [id, n] of Object.entries(N)) {
+  const h = 38;
+  n.g = el('g', { class: 'n' + (n.d ? ' d' : '') }, gNode);
+  el('rect', { class: 'box', x: n.x - n.w / 2, y: n.y - h / 2, width: n.w, height: h, rx: 6 }, n.g);
+  n.tEl = el('text', { class: 't', x: n.x, y: n.y - 2 }, n.g);
+  n.sEl = el('text', { class: 's', x: n.x, y: n.y + 12 }, n.g);
+  n.tEl.textContent = n.t; n.sEl.textContent = n.s;
+  n.last = -9; n.tv = n.t; n.sv = n.s;
+}
+function setNode(id, t, s) {
+  const n = N[id];
+  if (t !== n.tv) n.tEl.textContent = n.tv = t;
+  if (s !== n.sv) n.sEl.textContent = n.sv = s;
+}
+
+// ═════════════════════════ backend nodes ═════════════════════════
+function buildNodes() {
+  gBack.replaceChildren(); gFan.replaceChildren(); nodes.length = 0;
+  const cols = NN > 10 ? 2 : 1, rows = Math.ceil(NN / cols);
+  const pitch = 296 / rows, h = Math.min(34, pitch - 4), w = cols === 1 ? 130 : 98;
+  for (let i = 0; i < NN; i++) {
+    const col = Math.floor(i / rows), row = i % rows;
+    const x = cols === 1 ? 880 : (col ? 940 : 835), y = 26 + pitch * row + pitch / 2;
+    el('line', { class: 'fan', x1: BUS.x, y1: BUS.y, x2: x - w / 2, y2: y }, gFan);
+    const g = el('g', { class: 'n be' }, gBack);
+    el('title', {}, g).textContent = 'Click to crash this node';
+    const box = el('rect', { class: 'box', x: x - w / 2, y: y - h / 2, width: w, height: h, rx: 5 }, g);
+    const bar = el('rect', { x: x - w / 2 + 5, y: y + h / 2 - 6, width: 0, height: 3, rx: 1.5 }, g);
+    const t = el('text', { class: 'nt', x: x - w / 2 + 8, y: y - 3, 'dominant-baseline': 'central' }, g);
+    const s = el('text', { class: 'ns', x: x + w / 2 - 8, y: y - 3, 'dominant-baseline': 'central' }, g);
+    t.textContent = 'N' + (i + 1);
+    const nd = { id: i, x, y, w, h, g, bar, s, up: true, count: full(), inpool: true, inflight: 0, downUntil: 0, last: -9, sv: null };
+    g.addEventListener('click', () => crash(nd));
+    nodes.push(nd);
+  }
+}
+function renderNodes() {
+  const f = full(), t = thr();
+  for (const n of nodes) {
+    n.g.classList.toggle('down', !n.up);
+    n.g.classList.toggle('out', n.up && !n.inpool);
+    n.g.classList.toggle('on', rt - n.last < 0.2);
+    const txt = !n.up ? 'down' : fmt(n.count) + (n.inpool ? '' : ' · out');
+    if (txt !== n.sv) n.s.textContent = n.sv = txt;
+    n.bar.setAttribute('width', Math.max(0, (n.w - 10) * n.count / f));
+    n.bar.style.fill = n.count >= t ? 'var(--hit)' : 'var(--miss)';
+  }
+}
+function crash(n) {
+  if (!n.up) return;
+  n.up = false; n.count = 0; n.downUntil = T + DOWN_T;
+  hdetail(`<b>N${n.id + 1}</b> crashed. It will be down for a moment, then restart.`);
+}
+function nodesTick(dt) {
+  const f = full();
+  for (const n of nodes) {
+    if (!n.up && T >= n.downUntil) {
+      n.up = true; n.count = 0;
+      hdetail(`<b>N${n.id + 1}</b> restarted. It is alive but empty (0 / ${fmt(f)} campaigns), loading now.`);
+    }
+    if (n.up && n.count < f) n.count = Math.min(f, n.count + f / LOAD_T * dt);
+  }
+}
+
+// ═════════════════════════ tokens ═════════════════════════
+const toks = [];
+function mkTok(color, x, y, r = 5, txt) {
+  const g = el('g', {}, gTok);
+  const c = el('circle', { r }, g); c.style.fill = `var(--${color})`;
+  let t = null; if (txt != null) { t = el('text', { class: 'tok-t' }, g); t.textContent = txt; }
+  const tok = { g, c, t, x, y, q: [], wait: 0 };
+  toks.push(tok); return tok;
+}
+const colorTok = (tok, color) => (tok.c.style.fill = `var(--${color})`);
+const P = (x, y, extra = {}) => ({ x, y, ...extra });
+function stepTok(t, dt) {
+  if (t.wait > 0) { t.wait -= dt; return; }
+  let move = TOK_SPEED * dt;
+  while (move > 0 && t.q.length) {
+    const w = t.q[0], dx = w.x - t.x, dy = w.y - t.y, d = Math.hypot(dx, dy);
+    if (d <= move) {
+      t.x = w.x; t.y = w.y; move -= d; t.q.shift();
+      if (w.n) N[w.n].last = rt;
+      if (w.l) linkLast[w.l] = rt;
+      if (w.fn) w.fn(t);
+      if (w.wait) { t.wait = w.wait; break; }
+    } else { t.x += dx / d * move; t.y += dy / d * move; move = 0; }
+  }
+  if (!t.q.length && t.wait <= 0) t.dead = true;
+}
+
+// ═════════════════════════ request path ═════════════════════════
+// Pre-computed routing data: the 3 nodes that hold the campaigns for a user.
+const FALSE_POS = 0.7;   // modeled: share of non-matching nodes the fast filters cannot rule out
+function cands(uid) {
+  let s = Math.imul(uid, 2654435761) >>> 0; const a = [];
+  while (a.length < REP) { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; const n = (s >>> 8) % NN; if (!a.includes(n)) a.push(n); }
+  return a.sort((x, y) => x - y);
+}
+const names = a => a.map(i => 'N' + (i + 1)).join(', ');
+function detail(h) { $('#detail').innerHTML = h; }
+function hdetail(h) { $('#hdetail').innerHTML = 'Health: ' + h; }
+
+function record(ok, empty) {
+  ok ? st.ok++ : st.bad++; if (empty) st.empty++;
+  win.push(ok ? 1 : 0); if (win.length > WINDOW) win.shift();
+}
+function selectNode(req, nd) {
+  req.node = nd; nd.inflight++;
+}
+function toNode(req, nd) {
+  return P(nd.x - nd.w / 2, nd.y, { wait: 0.45, fn: tok => arrive(req, nd, tok) });
+}
+function arrive(req, nd, tok) {
+  nd.last = rt;
+  const f = full(), t = thr();
+  const isCand = req.cs.includes(nd.id);
+  const empty = !nd.up || nd.count < t;
+  let ok = false, why;
+  if (!nd.up) why = 'node is down, no response';
+  else if (!isCand) why = `no campaign for this user on N${nd.id + 1}`;
+  else if (Math.random() < nd.count / f) ok = true;
+  else why = 'campaigns not loaded yet';
+  const svc = nd.up ? 0.15 + 0.9 * nd.count / f : 0.2;
+  later.push({ at: T + svc, fn: () => nd.inflight-- });
+  record(ok, empty);
+  colorTok(tok, ok ? 'hit' : 'miss');
+  detail(`#${req.n} user ${req.uid} (campaigns on ${names(req.cs)}) → ${req.how} <b>N${nd.id + 1}</b> → ` + (ok ? '<b>matched</b>' : `<b>wasted</b>: ${why}`));
+}
+
+function spawnReq() {
+  const uid = 10000 + Math.floor(Math.random() * 89999);
+  const cs = cands(uid);
+  // Fast proxy filters only drop clearly wrong nodes, so some false positives stay in the list.
+  const cand = [...Array(NN).keys()].filter(i => cs.includes(i) || Math.random() < FALSE_POS);
+  const req = { n: ++st.req, uid, cs, cand, node: null, how: '' };
+  const tok = mkTok('accent', N.R.x, N.R.y); N.R.last = rt;
+  const ms = Math.max(3.5, Math.min(6.5, 5 + gauss() * 0.6));
+  tok.q = [P(N.LB.x, N.LB.y, { n: 'LB', l: 'rl', fn: () => {
+    if (route === 'rr') {
+      const pool = nodes.filter(x => x.inpool);
+      if (!pool.length) { record(false, true); colorTok(tok, 'miss'); detail(`#${req.n} no node in the pool, request dropped`); return; }
+      const nd = pool[rrIdx++ % pool.length];
+      req.how = 'round-robin →'; selectNode(req, nd);
+      tok.q.push(P(175, 300, { l: 'by' }), P(740, 300), P(BUS.x, BUS.y), toNode(req, nd));
+      return;
+    }
+    latSum += ms; latN++;
+    tok.q.push(
+      P(N.PA.x, N.PA.y, { n: 'PA', l: 'lp' }),
+      P(N.QU.x, N.QU.y, { n: 'QU', l: 'pq', wait: 0.12, fn: () => {
+        N.RD.last = rt; linkLast.qd = rt; linkLast.qu = rt + 0.12;
+        setNode('RD', 'Redis', `user ${uid} → ${names(req.cand)}`);
+      } }),
+      P(N.PK.x, N.PK.y, { n: 'PK', l: 'qk', fn: () => {
+        let pool = nodes.filter(x => x.inpool && req.cand.includes(x.id));
+        let src = 'candidates ' + names(req.cand);
+        if (!pool.length) { pool = nodes.filter(x => x.inpool); src += ' (none in pool, any node)'; }
+        if (!pool.length) { record(false, true); colorTok(tok, 'miss'); detail(`#${req.n} no node in the pool, request dropped`); tok.q.length = 0; return; }
+        let nd;
+        if (pick === 'least') {
+          const m = Math.min(...pool.map(x => x.inflight));
+          const ties = pool.filter(x => x.inflight === m);
+          nd = ties[Math.floor(Math.random() * ties.length)];
+          req.how = `Redis: ${src}, least request →`;
+        } else {
+          nd = pool[Math.floor(Math.random() * pool.length)];
+          req.how = `Redis: ${src}, random →`;
+        }
+        selectNode(req, nd);
+        tok.q.push(P(BUS.x, BUS.y, { l: 'pb' }), toNode(req, nd));
+      } })
+    );
+  } })];
+}
+
+// ═════════════════════════ health check ═════════════════════════
+function setPool(n, v, why) {
+  if (n.inpool === v) return;
+  n.inpool = v;
+  hdetail(v
+    ? `<b>N${n.id + 1}</b> ${why} → <b>included</b> in pool (${fmt(n.count)} / ${fmt(full())} campaigns)`
+    : `<b>N${n.id + 1}</b> ${why} → <b>removed</b> from pool`);
+}
+function healthCheck(i) {
+  const n = nodes[i]; if (!n) return;
+  const tok = mkTok('fly', N.H.x, N.H.y, 8, String(i + 1)); N.H.last = rt;
+  tok.q = [P(N.A.x, N.A.y, { n: 'A', l: 'ha', fn: () => {
+    if (!n.up) {
+      colorTok(tok, 'skip');
+      tok.q.push(P(N.R1.x, N.R1.y, { n: 'R1', l: 'an', fn: () => setPool(n, false, 'is not alive') }),
+        P(250, 515, { l: 'r1p' }), P(860, 515), P(860, 419, { n: 'PL' }));
+      return;
+    }
+    tok.q.push(P(N.C.x, N.C.y, { n: 'C', l: 'ay', fn: () => {
+      const okC = health === 'live' || n.count >= thr();
+      if (!okC) {
+        colorTok(tok, 'miss');
+        tok.q.push(P(N.R2.x, N.R2.y, { n: 'R2', l: 'cn', fn: () => setPool(n, false, `has too few campaigns (${fmt(n.count)} < ${fmt(thr())})`) }),
+          P(440, 515, { l: 'r2p' }), P(860, 515, { l: 'r1p' }), P(860, 419, { n: 'PL' }));
+        return;
+      }
+      colorTok(tok, 'hit');
+      tok.q.push(P(N.I.x, N.I.y, { n: 'I', l: 'cy', fn: () => setPool(n, true, health === 'live' ? 'is alive' : 'is alive and ready') }),
+        P(N.PL.x - 80, N.PL.y, { l: 'ip' }), P(N.PL.x, N.PL.y, { n: 'PL' }));
+    } }));
+  } })];
+}
+
+// ═════════════════════════ ui ═════════════════════════
+const TILES = [
+  ['req', 'Requests'], ['rate', 'Live match rate'], ['mw', 'Matched / wasted'],
+  ['exp', 'Round-robin gives (3 / nodes, modeled)'], ['cpn', 'Campaigns per node (modeled)'],
+  ['lat', 'Added proxy latency (modeled)'], ['pool', 'Nodes in routing pool'], ['dead', 'Sent to empty or down nodes'],
+];
+const tileEl = {};
+for (const [id, k] of TILES) {
+  const d = document.createElement('div'); d.className = 'tile';
+  d.innerHTML = `<div class="k">${k}</div><div class="v"></div>`;
+  $('#tiles').appendChild(d); tileEl[id] = d.querySelector('.v');
+}
+const sparkLine = el('polyline', { fill: 'none', stroke: 'var(--accent)', 'stroke-width': 2, 'vector-effect': 'non-scaling-stroke' }, $('#spark'));
+const sparkExp = el('line', { x1: 0, x2: 1000, stroke: 'var(--miss)', 'stroke-width': 1.5, 'stroke-dasharray': '5 4', 'vector-effect': 'non-scaling-stroke' }, $('#spark'));
+
+function matchRate() { return win.length >= 10 ? win.reduce((a, b) => a + b, 0) / win.length : null; }
+
+function updateUI() {
+  const mr = matchRate(), exp = Math.min(1, REP / NN);
+  tileEl.req.textContent = fmt(st.req);
+  tileEl.rate.innerHTML = mr == null ? '-' : `<span class="${mr >= 0.7 ? 'good' : mr < 0.5 ? 'bad' : ''}">${Math.round(mr * 100)}%</span> <small>last ${win.length}</small>`;
+  tileEl.mw.innerHTML = `<span class="good">${fmt(st.ok)}</span> / <span class="bad">${fmt(st.bad)}</span>`;
+  tileEl.exp.textContent = Math.round(exp * 100) + '%';
+  tileEl.cpn.innerHTML = `${fmt(full())} <small>${fmt(TOTAL)} x ${REP} / ${NN}</small>`;
+  tileEl.lat.innerHTML = route === 'rr' ? '0 ms <small>no proxy</small>' : (latN ? `~${(latSum / latN).toFixed(1)} ms` : '-');
+  const inPool = nodes.filter(n => n.inpool).length;
+  tileEl.pool.innerHTML = `<span class="${inPool < NN ? 'bad' : ''}">${inPool}</span> <small>/ ${NN}</small>`;
+  tileEl.dead.innerHTML = `<span class="${st.empty ? 'bad' : ''}">${fmt(st.empty)}</span>`;
+  renderNodes();
+  updateFlowLabels();
+  const y = v => 100 - v * 100;
+  sparkExp.setAttribute('y1', y(exp)); sparkExp.setAttribute('y2', y(exp));
+  sparkLine.setAttribute('points', hist.map((v, i) => `${(i / Math.max(1, 239) * 1000).toFixed(1)},${y(v).toFixed(1)}`).join(' '));
+}
+function updateFlowLabels() {
+  const rr = route === 'rr';
+  setNode('LB', 'Load Balancer', rr ? 'round-robin' : 'to proxy');
+  setNode('PK', 'Pick Node', pick === 'least' ? 'least request' : 'random');
+  setNode('C', 'Has campaigns?', health === 'live' ? 'off (liveness only)' : `count >= ${fmt(thr())}`);
+  setNode('PL', 'Routing pool', `${nodes.filter(n => n.inpool).length} of ${NN} nodes`);
+  proxyLane.classList.toggle('dimg', rr);
+  for (const id of ['PA', 'QU', 'PK', 'RD']) N[id].g.classList.toggle('dim', rr);
+  N.C.g.classList.toggle('dim', health === 'live');
+  if (rr && N.RD.sv !== 'routing data') setNode('RD', 'Redis', 'routing data');
+}
+
+// controls
+$('#play').onclick = () => { paused = !paused; $('#play').textContent = paused ? 'Play' : 'Pause'; };
+$('#speed').onchange = e => (speed = +e.target.value);
+document.querySelectorAll('.seg').forEach(seg => seg.querySelectorAll('button').forEach(b => b.onclick = () => {
+  const k = seg.dataset.k, v = b.dataset.v;
+  if (k === 'route') { route = v; win = []; }
+  if (k === 'health') health = v;
+  if (k === 'pick') pick = v;
+  seg.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+}));
+function resetAll() {
+  for (const t of toks) t.g.remove(); toks.length = 0; later.length = 0;
+  resetStats(); rrIdx = 0; hcIdx = 0; buildNodes();
+  detail('Waiting for the first request...'); hdetail('all nodes ready.');
+}
+const sl = (id, unit, fn) => {
+  const inp = $('#' + id), out = $('#' + id + 'O');
+  const set = () => { out.textContent = inp.value + unit; fn(+inp.value); };
+  inp.oninput = set; set();
+};
+sl('rate', '/s', v => (rate = v));
+sl('ready', '%', v => (readyPct = v));
+sl('nodesIn', '', v => { NN = v; if (nodes.length !== NN) resetAll(); });
+$('#crash').onclick = () => {
+  const up = nodes.filter(n => n.up);
+  const loaded = up.filter(n => n.count >= full() * 0.99);
+  const pool = loaded.length ? loaded : up;
+  if (pool.length) crash(pool[Math.floor(Math.random() * pool.length)]);
+};
+
+// ═════════════════════════ main loop ═════════════════════════
+let prev = performance.now(), uiAcc = 0;
+function frame(ts) {
+  const real = Math.min(0.05, (ts - prev) / 1000); prev = ts;
+  rt += real;
+  const dt = paused ? 0 : real * speed;
+  T += dt;
+  if (!paused) {
+    nodesTick(dt);
+    spawnAcc += dt * rate;
+    while (spawnAcc >= 1) { spawnAcc--; spawnReq(); }
+    hcAcc += dt;
+    if (hcAcc >= CHECK_EVERY) { hcAcc = 0; healthCheck(hcIdx++ % NN); }
+    for (let i = later.length - 1; i >= 0; i--) if (later[i].at <= T) { later[i].fn(); later.splice(i, 1); }
+    histAcc += real;
+    if (histAcc > 0.5) {
+      histAcc = 0; const mr = matchRate();
+      if (mr != null) { hist.push(mr); if (hist.length > 240) hist.shift(); }
+    }
+  }
+  for (let i = toks.length - 1; i >= 0; i--) {
+    const t = toks[i]; stepTok(t, dt);
+    if (t.dead) { t.g.remove(); toks.splice(i, 1); continue; }
+    t.g.setAttribute('transform', `translate(${t.x.toFixed(1)},${t.y.toFixed(1)})`);
+  }
+  for (const id in N) N[id].g.classList.toggle('on', rt - N[id].last < 0.18);
+  for (const id in linkEl) linkEl[id].classList.toggle('on', rt - linkLast[id] < 0.25 && rt >= linkLast[id]);
+  uiAcc += real;
+  if (uiAcc > 0.15) { uiAcc = 0; updateUI(); }
+  requestAnimationFrame(frame);
+}
+
+buildNodes();
+updateUI();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
